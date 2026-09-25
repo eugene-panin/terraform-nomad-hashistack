@@ -7,7 +7,7 @@ gets to them. The hosts themselves come from the Ansible collection
 
 Published as `eugene-panin/hashistack/nomad`. Each module is used on its
 own, with `source = "eugene-panin/hashistack/nomad//modules/<module>"` and
-`version = "~> 0.1"`; see its README.
+`version = "~> 0.2"`; see its README.
 
 ## Modules
 

@@ -9,7 +9,7 @@ HTTP-01 challenge, and redirect plain HTTP to HTTPS.
 ```hcl
 module "traefik" {
   source  = "eugene-panin/hashistack/nomad//modules/traefik"
-  version = "~> 0.1"
+  version = "~> 0.2"
 
   domain           = "infra.example.com"
   acme_email       = "admin@example.com"

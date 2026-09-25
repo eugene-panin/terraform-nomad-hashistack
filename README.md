@@ -16,13 +16,15 @@ own, with `source = "eugene-panin/hashistack/nomad//modules/<module>"` and
 | [`workload-identity`](modules/workload-identity) | done | Consul and Vault auth for Nomad workload identities; each job reads only its own secrets |
 | [`traefik`](modules/traefik) | done | Traefik on Nomad: an internal entrypoint with a DNS-01 wildcard, public entrypoints with HTTP-01 |
 | [`mail`](modules/mail) | done | Stalwart mail server for several domains: SMTP, submission, IMAP, DKIM, MTA-STS, certificates through TLS-ALPN-01 |
+| [`mail-dns-cloudflare`](modules/mail-dns-cloudflare) | done | The DNS records of `mail` in Cloudflare zones |
 
 ## Requirements
 
 - OpenTofu or Terraform >= 1.9, and >= 1.11 for `traefik` and `mail`, which use
   write-only attributes; no feature specific to either is used
-- Providers `hashicorp/consul` 2.x, `hashicorp/vault` 5.x, `hashicorp/nomad` 2.x, and
-  `hashicorp/tls` 4.x, `hashicorp/random` 3.x for `mail`
+- Providers `hashicorp/consul` 2.x, `hashicorp/vault` 5.x, `hashicorp/nomad` 2.x,
+  `hashicorp/tls` 4.x and `hashicorp/random` 3.x for `mail`, `cloudflare/cloudflare`
+  5.x for `mail-dns-cloudflare`
 
 ## Development
 

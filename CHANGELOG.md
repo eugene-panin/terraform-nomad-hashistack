@@ -3,6 +3,16 @@
 All notable changes to this module are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `mail-dns-cloudflare` module: the DNS records of `mail` in Cloudflare, MX
+  with priority, TXT split into quoted strings of at most 255 characters, host
+  names not proxied, domains outside Cloudflare left out. Tested with
+  `tofu test` and a mocked provider, with negative controls; CI runs the module
+  tests with both binaries.
+
 ## [0.2.0] - 2026-09-26
 
 ### Added

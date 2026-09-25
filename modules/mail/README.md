@@ -8,7 +8,7 @@ there on every start, so the running server always matches the module inputs.
 ```hcl
 module "mail" {
   source  = "eugene-panin/hashistack/nomad//modules/mail"
-  version = "~> 0.2"
+  version = "~> 0.3"
 
   hostname   = "mail.example.com"
   domains    = ["example.com", "example.org"]

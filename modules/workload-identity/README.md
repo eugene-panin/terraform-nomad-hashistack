@@ -10,7 +10,7 @@ half of workload identity; the Nomad half, the `service_identity`,
 ```hcl
 module "workload_identity" {
   source  = "eugene-panin/hashistack/nomad//modules/workload-identity"
-  version = "~> 0.2"
+  version = "~> 0.3"
 
   nomad_jwks_url    = "https://10.0.0.10:4646/.well-known/jwks.json"
   nomad_jwks_ca_pem = file("ca.pem")

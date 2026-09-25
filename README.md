@@ -15,12 +15,14 @@ own, with `source = "eugene-panin/hashistack/nomad//modules/<module>"` and
 |---|---|---|
 | [`workload-identity`](modules/workload-identity) | done | Consul and Vault auth for Nomad workload identities; each job reads only its own secrets |
 | [`traefik`](modules/traefik) | done | Traefik on Nomad: an internal entrypoint with a DNS-01 wildcard, public entrypoints with HTTP-01 |
+| [`mail`](modules/mail) | done | Stalwart mail server for several domains: SMTP, submission, IMAP, DKIM, MTA-STS, certificates through TLS-ALPN-01 |
 
 ## Requirements
 
-- OpenTofu or Terraform >= 1.9, and >= 1.11 for `traefik`, which uses a write-only
-  attribute; no feature specific to either is used
-- Providers `hashicorp/consul` 2.x, `hashicorp/vault` 5.x, `hashicorp/nomad` 2.x
+- OpenTofu or Terraform >= 1.9, and >= 1.11 for `traefik` and `mail`, which use
+  write-only attributes; no feature specific to either is used
+- Providers `hashicorp/consul` 2.x, `hashicorp/vault` 5.x, `hashicorp/nomad` 2.x, and
+  `hashicorp/tls` 4.x, `hashicorp/random` 3.x for `mail`
 
 ## Development
 
@@ -32,7 +34,7 @@ make test-terraform    # the same with terraform
 
 Tests live in `test/` and use [Terratest](https://terratest.gruntwork.io/)
 v2. Every example under `examples/` is initialised and validated with both
-binaries. Module tests start Consul, Vault, Nomad and the Pebble ACME server in Docker from
+binaries. Module tests start Consul, Vault, Nomad and two Pebble ACME servers in Docker, one of them validating challenges for real from
 `test/fixtures/stack` and run real jobs against them; `KEEP_STACK=1` leaves
 the stack up after a run, for a look inside.
 

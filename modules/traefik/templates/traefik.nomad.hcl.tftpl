@@ -216,6 +216,11 @@ ${backend_ca_pem}
 %{ endif ~}
                 forwardingTimeouts:
                   dialTimeout: 10s
+          tcp:
+            serversTransports:
+              proxy-protocol:
+                proxyProtocol:
+                  version: 2
         EOT
       }
 

@@ -38,6 +38,32 @@ services:
     ports:
       - 127.0.0.1:15000:15000
 
+  challtestsrv:
+    image: ghcr.io/letsencrypt/pebble-challtestsrv:2.10.1
+    command:
+      - -defaultIPv4=172.30.77.10
+      - -defaultIPv6=
+      - -http01=
+      - -https01=
+      - -tlsalpn01=
+      - -doh=
+      - -dnsserver=:8053
+
+  pebble-strict:
+    image: ghcr.io/letsencrypt/pebble:2.10.1
+    command:
+      - -config=/etc/pebble/config.json
+      - -dnsserver=challtestsrv:8053
+    environment:
+      PEBBLE_VA_NOSLEEP: "1"
+      PEBBLE_WFE_NONCEREJECT: "0"
+    volumes:
+      - ./pebble-strict:/etc/pebble:ro
+    depends_on:
+      - challtestsrv
+    ports:
+      - 127.0.0.1:15001:15000
+
   nomad:
     image: mirror.gcr.io/hashicorp/nomad:2.0.7
     command:
@@ -60,6 +86,8 @@ services:
         condition: service_started
       pebble:
         condition: service_started
+      pebble-strict:
+        condition: service_started
       ca-certificates:
         condition: service_completed_successfully
     ports:
@@ -67,6 +95,19 @@ services:
       - 127.0.0.1:18443:443
       - 127.0.0.1:18080:80
       - 127.0.0.1:19443:9443
+      - 127.0.0.1:10025:25
+      - 127.0.0.1:10465:465
+      - 127.0.0.1:10587:587
+      - 127.0.0.1:10993:993
+    networks:
+      default:
+        ipv4_address: 172.30.77.10
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.77.0/24
 
 volumes:
   ca-certificates:

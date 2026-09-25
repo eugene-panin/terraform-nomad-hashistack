@@ -60,6 +60,12 @@ service {
 `routes` adds backends that are not in the Consul catalog, such as the Nomad,
 Consul and Vault UIs; they are served on the internal entrypoint only.
 
+For TCP services that pass TLS through, the dynamic configuration has a TCP
+servers transport `proxy-protocol` that sends the PROXY protocol version 2
+header, so the backend sees the client's address. A service uses it with
+`traefik.tcp.services.<name>.loadbalancer.serverstransport=proxy-protocol@file`;
+the `mail` module does, and its test covers it.
+
 ## Requirements on the cluster
 
 - The `workload-identity` module, or equivalent: Traefik's task needs a Consul

@@ -3,6 +3,7 @@ module github.com/eugene-panin/terraform-nomad-hashistack/test
 go 1.26.5
 
 require (
+	github.com/emersion/go-msgauth v0.7.0
 	github.com/gruntwork-io/terratest/modules/core/v2 v2.0.0
 	github.com/gruntwork-io/terratest/modules/docker/v2 v2.0.0
 	github.com/gruntwork-io/terratest/modules/terraform/v2 v2.0.0

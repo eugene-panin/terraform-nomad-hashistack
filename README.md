@@ -11,7 +11,7 @@ Work in progress: nothing is released yet.
 
 | Module | Status | Purpose |
 |---|---|---|
-| [`workload-identity`](modules/workload-identity) | not yet | Consul and Vault auth for Nomad workload identities |
+| [`workload-identity`](modules/workload-identity) | done | Consul and Vault auth for Nomad workload identities; each job reads only its own secrets |
 | [`traefik`](modules/traefik) | not yet | Traefik on Nomad: internal and public entrypoints, DNS-01 certificates |
 
 ## Requirements
@@ -29,7 +29,9 @@ make test-terraform    # the same with terraform
 
 Tests live in `test/` and use [Terratest](https://terratest.gruntwork.io/)
 v2. Every example under `examples/` is initialised and validated with both
-binaries in CI.
+binaries. Module tests start Consul, Vault and Nomad in Docker from
+`test/fixtures/stack` and run real jobs against them; `KEEP_STACK=1` leaves
+the stack up after a run, for a look inside.
 
 ## License
 

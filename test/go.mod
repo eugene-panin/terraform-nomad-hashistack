@@ -2,14 +2,18 @@ module github.com/eugene-panin/terraform-nomad-hashistack/test
 
 go 1.26.5
 
-require github.com/gruntwork-io/terratest/modules/terraform/v2 v2.0.0
+require (
+	github.com/gruntwork-io/terratest/modules/core/v2 v2.0.0
+	github.com/gruntwork-io/terratest/modules/docker/v2 v2.0.0
+	github.com/gruntwork-io/terratest/modules/terraform/v2 v2.0.0
+)
 
 require (
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/gruntwork-io/terratest/modules/core/v2 v2.0.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/gruntwork-io/terratest/modules/opa/v2 v2.0.0 // indirect
 	github.com/gruntwork-io/terratest/modules/ssh/v2 v2.0.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
@@ -38,4 +42,5 @@ require (
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gotest.tools/v3 v3.5.2 // indirect
 )

@@ -12,6 +12,8 @@ github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 github.com/gruntwork-io/terratest/modules/core/v2 v2.0.0 h1:9Wfr0hAj5axsiSxBi789TZRQfCvcRBUS47TmoHMWBag=
 github.com/gruntwork-io/terratest/modules/core/v2 v2.0.0/go.mod h1:toDd6sojktUVEqV7nVIzncmEVXqkMgreSa2DhMBMBQk=
+github.com/gruntwork-io/terratest/modules/docker/v2 v2.0.0 h1:UiLLk/whYv5eGV06UsDJVU/6ryyafutmqXx46RpNerY=
+github.com/gruntwork-io/terratest/modules/docker/v2 v2.0.0/go.mod h1:9gPhO6lG/mpzt7rLaJlcwGDwTpbVhqZOxerXMbRIZ88=
 github.com/gruntwork-io/terratest/modules/httphelper/v2 v2.0.0 h1:5M7KU9ttle9PFEjrHUST2/HSnzYtDt0QVW6E8hhFWJo=
 github.com/gruntwork-io/terratest/modules/httphelper/v2 v2.0.0/go.mod h1:wsYxURUVgZx5zmbx1tLGO7cKGeUhspbnfizcnETpvpQ=
 github.com/gruntwork-io/terratest/modules/opa/v2 v2.0.0 h1:jampvF9Ueohl/E64dsA+ARdXGfcA0VvFYsDh1oQ7TWk=
@@ -85,3 +87,5 @@ gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntN
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+gotest.tools/v3 v3.5.2 h1:7koQfIKdy+I8UTetycgUqXWSDwpgv193Ka+qRsmBY8Q=
+gotest.tools/v3 v3.5.2/go.mod h1:LtdLGcnqToBH83WByAAi/wiwSFCArdFIUV/xxN4pcjA=

@@ -1,0 +1,43 @@
+---
+name: hashistack-test
+
+services:
+  consul:
+    image: mirror.gcr.io/hashicorp/consul:2.0.4
+    command:
+      - agent
+      - -dev
+      - -client=0.0.0.0
+      - -hcl=acl { enabled = true default_policy = "deny" tokens { initial_management = "test-consul-management" } }
+    ports:
+      - 127.0.0.1:18500:8500
+
+  vault:
+    image: mirror.gcr.io/hashicorp/vault:2.1.1
+    command:
+      - server
+      - -dev
+      - -dev-root-token-id=test-vault-root
+      - -dev-listen-address=0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - 127.0.0.1:18200:8200
+
+  nomad:
+    image: mirror.gcr.io/hashicorp/nomad:2.0.7
+    command:
+      - agent
+      - -dev
+      - -bind=0.0.0.0
+      - -config=/etc/nomad.d/nomad.hcl
+    volumes:
+      - ./nomad.hcl:/etc/nomad.d/nomad.hcl:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroup: host
+    privileged: true
+    depends_on:
+      - consul
+      - vault
+    ports:
+      - 127.0.0.1:14646:4646

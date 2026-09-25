@@ -5,7 +5,9 @@ stack: how workloads prove who they are to Consul and Vault, and how traffic
 gets to them. The hosts themselves come from the Ansible collection
 [`eugene_panin.hashistack`](https://github.com/eugene-panin/ansible-collection-hashistack).
 
-Work in progress: nothing is released yet.
+Published as `eugene-panin/hashistack/nomad`. Each module is used on its
+own, with `source = "eugene-panin/hashistack/nomad//modules/<module>"` and
+`version = "~> 0.1"`; see its README.
 
 ## Modules
 

@@ -1,0 +1,68 @@
+---
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - LICENSE
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - LICENSE
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: tofu fmt
+        run: tofu fmt -check -recursive
+
+      - uses: terraform-linters/setup-tflint@v6
+
+      - name: tflint
+        run: tflint --init && tflint --recursive --config "$GITHUB_WORKSPACE/.tflint.hcl"
+
+  test:
+    name: test (${{ matrix.binary }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        binary: [tofu, terraform]
+    env:
+      TF_BINARY: ${{ matrix.binary }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: test/go.mod
+          cache-dependency-path: test/go.sum
+
+      - uses: opentofu/setup-opentofu@v2
+        if: matrix.binary == 'tofu'
+        with:
+          tofu_wrapper: false
+
+      - uses: hashicorp/setup-terraform@v4
+        if: matrix.binary == 'terraform'
+        with:
+          terraform_wrapper: false
+
+      - name: go test
+        working-directory: test
+        run: go test ./... -count=1 -timeout 30m

@@ -25,5 +25,5 @@ output "vault_role_name" {
 
 output "vault_kv_path" {
   description = "Path of the KV version 2 engine; a job reads <path>/<namespace>/<job>/*."
-  value       = var.vault_kv_path
+  value       = var.create_vault_kv_mount ? vault_mount.kv[0].path : var.vault_kv_path
 }

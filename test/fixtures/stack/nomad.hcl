@@ -25,4 +25,9 @@ vault {
 
 client {
   cpu_total_compute = 2000
+  network_interface = "eth0"
+
+  host_network "public" {
+    interface = "eth0"
+  }
 }

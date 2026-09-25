@@ -1,0 +1,228 @@
+job "${job_name}" {
+  namespace   = "${namespace}"
+  datacenters = ${jsonencode(datacenters)}
+  type        = "service"
+
+  group "traefik" {
+    network {
+      port "internal" {
+        static       = ${internal.port}
+        host_network = "${internal.host_network}"
+      }
+%{ if public.enabled ~}
+
+      port "public_http" {
+        static       = ${public.http_port}
+        host_network = "${public.host_network}"
+      }
+
+      port "public_https" {
+        static       = ${public.https_port}
+        host_network = "${public.host_network}"
+      }
+%{ endif ~}
+    }
+
+    volume "acme" {
+      type            = "host"
+      source          = "${volume_name}"
+      access_mode     = "single-node-writer"
+      attachment_mode = "file-system"
+    }
+
+    service {
+      name     = "${job_name}"
+      port     = "internal"
+      provider = "consul"
+
+      check {
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "traefik" {
+      driver = "exec"
+      user   = "nobody"
+
+      artifact {
+        source      = "https://github.com/traefik/traefik/releases/download/v${traefik_version}/traefik_v${traefik_version}_linux_$${attr.cpu.arch}.tar.gz"
+        destination = "local/traefik"
+
+        options {
+          checksum = "file:https://github.com/traefik/traefik/releases/download/v${traefik_version}/traefik_v${traefik_version}_checksums.txt"
+        }
+      }
+
+      config {
+        command = "local/traefik/traefik"
+        args    = ["--configfile=/local/traefik.yml"]
+        cap_drop = ["all"]
+        cap_add  = ["net_bind_service"]
+      }
+
+      volume_mount {
+        volume      = "acme"
+        destination = "/acme"
+      }
+
+      consul {}
+
+      vault {}
+
+%{ if acme_ca_certificate != null ~}
+      env {
+        LEGO_CA_CERTIFICATES = "/local/acme-ca.pem"
+      }
+
+      template {
+        destination     = "local/acme-ca.pem"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+${acme_ca_certificate}
+        EOT
+      }
+
+%{ endif ~}
+%{ if consul.ca_pem != null ~}
+      template {
+        destination     = "local/consul-ca.pem"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+${consul.ca_pem}
+        EOT
+      }
+
+%{ endif ~}
+%{ if backend_ca_pem != null ~}
+      template {
+        destination     = "local/backend-ca.pem"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+${backend_ca_pem}
+        EOT
+      }
+
+%{ endif ~}
+      template {
+        destination = "secrets/acme.env"
+        env         = true
+        data        = <<-EOT
+          {{ with secret "${secret_path}" }}{{ range $k, $v := .Data.data }}{{ $k }}={{ $v }}
+          {{ end }}{{ end }}
+        EOT
+      }
+
+      template {
+        destination     = "local/traefik.yml"
+        change_mode     = "restart"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+          log:
+            level: INFO
+          entryPoints:
+            internal:
+              address: "[[ env "NOMAD_IP_internal" ]]:[[ env "NOMAD_PORT_internal" ]]"
+              asDefault: true
+              http:
+                tls:
+                  certResolver: dns
+                  domains:
+                    - main: "${domain}"
+                      sans:
+                        - "*.${domain}"
+%{ if public.enabled ~}
+            public-http:
+              address: "[[ env "NOMAD_IP_public_http" ]]:[[ env "NOMAD_PORT_public_http" ]]"
+              http:
+                redirections:
+                  entryPoint:
+                    to: public-https
+                    scheme: https
+            public-https:
+              address: "[[ env "NOMAD_IP_public_https" ]]:[[ env "NOMAD_PORT_public_https" ]]"
+              http:
+                tls:
+                  certResolver: http
+%{ endif ~}
+          providers:
+            consulCatalog:
+              exposedByDefault: false
+              prefix: traefik
+              defaultRule: 'Host(`{{ normalize .Name }}.${domain}`)'
+              endpoint:
+                address: "${consul.address}"
+                scheme: "${consul.scheme}"
+%{ if consul.ca_pem != null ~}
+                tls:
+                  ca: /local/consul-ca.pem
+%{ endif ~}
+            file:
+              filename: /local/dynamic.yml
+              watch: true
+          certificatesResolvers:
+            dns:
+              acme:
+                email: "${acme_email}"
+                caServer: "${acme_ca_server}"
+                storage: /acme/dns.json
+                dnsChallenge:
+                  provider: "${dns_provider}"
+                  propagation:
+                    disableChecks: ${dns_disable_checks}
+%{ if public.enabled ~}
+            http:
+              acme:
+                email: "${acme_email}"
+                caServer: "${acme_ca_server}"
+                storage: /acme/http.json
+                httpChallenge:
+                  entryPoint: public-http
+%{ endif ~}
+        EOT
+      }
+
+      template {
+        destination     = "local/dynamic.yml"
+        change_mode     = "noop"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+          http:
+            routers:
+%{ for name, route in routes ~}
+              ${name}:
+                rule: 'Host(`${route.host}`)'
+                service: ${name}
+%{ endfor ~}
+            services:
+%{ for name, route in routes ~}
+              ${name}:
+                loadBalancer:
+                  serversTransport: backend
+                  servers:
+                    - url: "${route.url}"
+%{ endfor ~}
+            serversTransports:
+              backend:
+%{ if backend_ca_pem != null ~}
+                rootCAs:
+                  - /local/backend-ca.pem
+%{ endif ~}
+                forwardingTimeouts:
+                  dialTimeout: 10s
+        EOT
+      }
+
+      resources {
+        cpu    = 200
+        memory = 128
+      }
+    }
+  }
+}

@@ -63,8 +63,8 @@ first job's secret and must be refused.
 
 | Name | Version |
 | ---- | ------- |
-| consul | 2.23.0 |
-| vault | 5.12.0 |
+| consul | >= 2.21, < 3.0 |
+| vault | >= 5.0, < 6.0 |
 
 ## Inputs
 

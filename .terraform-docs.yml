@@ -16,3 +16,4 @@ settings:
   default: true
   required: true
   type: true
+  lockfile: false

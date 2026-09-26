@@ -26,6 +26,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - `vault_kv_path` output of the root module, for the modules of apps.
 
+## [0.5.0] - 2026-09-26
+
 ### Added
 
 - `backup-b2` module: a private, encrypted Backblaze B2 bucket for restic and

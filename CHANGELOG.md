@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-27
+
 ### Changed
 
 - **Breaking.** The platform no longer runs mail. The `mail` module, the

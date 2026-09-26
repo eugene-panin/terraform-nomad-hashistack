@@ -31,5 +31,5 @@ resource "cloudflare_dns_record" "this" {
   priority = each.value.type == "MX" ? each.value.priority : null
   proxied  = contains(["A", "AAAA", "CNAME"], each.value.type) ? false : null
   ttl      = var.ttl
-  comment  = var.comment
+  comment  = coalesce(each.value.comment, var.comment)
 }

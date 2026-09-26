@@ -1,10 +1,11 @@
 variable "records" {
-  description = "DNS records keyed by domain, as the dns_records output of the mail module returns them."
+  description = "DNS records keyed by domain, as the dns_records outputs of the root module and the mail module return them. A record's comment overrides comment."
   type = map(list(object({
     type     = string
     name     = string
     content  = string
     priority = optional(number)
+    comment  = optional(string)
   })))
 
   validation {
@@ -47,7 +48,7 @@ variable "ttl" {
 }
 
 variable "comment" {
-  description = "Comment set on every record, so the records this module owns stand out in the dashboard."
+  description = "Comment set on every record that has none of its own, so the records this module owns stand out in the dashboard."
   type        = string
-  default     = "Mail, managed by OpenTofu"
+  default     = "Managed by OpenTofu"
 }

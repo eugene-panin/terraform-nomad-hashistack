@@ -3,6 +3,23 @@
 All notable changes to this module are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- The root module sets up the whole stack from a few inputs: workload
+  identity, Traefik with the Consul, Nomad and Vault UIs, and optionally mail
+  with an `info@` mailbox per domain that also receives `postmaster@` and
+  `abuse@`. It returns every public DNS record the stack needs. Tested with
+  `tofu test` and mocked providers, with negative controls.
+
+### Changed
+
+- `mail-dns-cloudflare` is renamed `dns-cloudflare`: it publishes any records,
+  and a record may carry its own comment. The default comment is now
+  "Managed by OpenTofu". Callers move the state with
+  `moved { from = module.<name> to = module.<new name> }` and the new source.
+
 ## [0.3.0] - 2026-09-26
 
 ### Added

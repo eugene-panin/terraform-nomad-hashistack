@@ -10,6 +10,7 @@ run "every_record_of_every_domain_is_created_once" {
         { type = "TXT", name = "example.com", content = "v=spf1 mx -all" },
         { type = "TXT", name = "s1-rsa._domainkey.example.com", content = "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxhG0mYzt2WtCg2W5Hvr1yb6oYv3kDEcXq3wJ6XvlJ4I8Fxy0Wc2x0ZX5fA3d1BbLkq8k7aTx6aJt0Lwz3bGmK3zR8uQn2yQv7m1pF4oZr7s0c3E6h9nD2kTqV5tYwXcA8bJ1lP0uH4gM6iN9eR2sK7fS3vB5nW1qZ8xT0yU4oC6jL2dE9aF7hG3kI5mN1pQ8rS0tU2vW4xY6zA8bC0dE2fG4hI6jK8lM0nO2pQ4rS6tU8vW0xY2zA4bC6dE8fG0hIDAQAB" },
         { type = "CNAME", name = "mta-sts.example.com", content = "mail.example.com" },
+        { type = "A", name = "*.example.com", content = "10.0.0.1", comment = "Internal names" },
       ]
       "example.org" = [
         { type = "MX", name = "example.org", content = "mail.example.com", priority = 10 },
@@ -19,8 +20,13 @@ run "every_record_of_every_domain_is_created_once" {
   }
 
   assert {
-    condition     = length(cloudflare_dns_record.this) == 6
+    condition     = length(cloudflare_dns_record.this) == 7
     error_message = "Expected one Cloudflare record per input record."
+  }
+
+  assert {
+    condition     = cloudflare_dns_record.this["A *.example.com"].comment == "Internal names" && cloudflare_dns_record.this["MX example.com"].comment == "Managed by OpenTofu"
+    error_message = "A record's own comment is not kept, or the others do not get the module comment."
   }
 
   assert {

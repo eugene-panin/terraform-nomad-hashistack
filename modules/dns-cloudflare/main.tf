@@ -1,16 +1,17 @@
 locals {
-  domains = var.domains == null ? toset(keys(var.records)) : var.domains
+  domains = var.domains == null ? toset(flatten([for set in var.records : keys(set)])) : var.domains
 
-  records = merge([
-    for d in local.domains : {
-      for r in var.records[d] : "${r.type} ${r.name}" => merge(r, {
-        domain = d
-        content = r.type != "TXT" ? r.content : join(" ", [
-          for i in range(0, length(r.content), 255) : "\"${substr(r.content, i, 255)}\""
-        ])
-      })
-    }
-  ]...)
+  records = {
+    for r in flatten([
+      for set in var.records : [
+        for d, rs in set : [for r in rs : merge(r, { domain = d })] if contains(local.domains, d)
+      ]
+      ]) : "${r.type} ${r.name}" => merge(r, {
+      content = r.type != "TXT" ? r.content : join(" ", [
+        for i in range(0, length(r.content), 255) : "\"${substr(r.content, i, 255)}\""
+      ])
+    })
+  }
 }
 
 data "cloudflare_zone" "this" {

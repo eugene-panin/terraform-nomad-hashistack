@@ -4,7 +4,7 @@ run "every_record_of_every_domain_is_created_once" {
   command = apply
 
   variables {
-    records = {
+    records = [{
       "example.com" = [
         { type = "MX", name = "example.com", content = "mail.example.com", priority = 10 },
         { type = "TXT", name = "example.com", content = "v=spf1 mx -all" },
@@ -16,7 +16,7 @@ run "every_record_of_every_domain_is_created_once" {
         { type = "MX", name = "example.org", content = "mail.example.com", priority = 10 },
         { type = "TXT", name = "_dmarc.example.org", content = "v=DMARC1; p=none; rua=mailto:postmaster@example.org" },
       ]
-    }
+    }]
   }
 
   assert {
@@ -67,7 +67,7 @@ run "every_record_of_every_domain_is_created_once" {
   }
 
   assert {
-    condition     = join("", [for chunk in regexall("\"([^\"]*)\"", cloudflare_dns_record.this["TXT s1-rsa._domainkey.example.com"].content) : chunk[0]]) == var.records["example.com"][2].content
+    condition     = join("", [for chunk in regexall("\"([^\"]*)\"", cloudflare_dns_record.this["TXT s1-rsa._domainkey.example.com"].content) : chunk[0]]) == var.records[0]["example.com"][2].content
     error_message = "The split TXT record does not join back to the original."
   }
 }
@@ -76,10 +76,10 @@ run "domains_outside_cloudflare_are_left_out" {
   command = apply
 
   variables {
-    records = {
+    records = [{
       "example.com" = [{ type = "MX", name = "example.com", content = "mail.example.com", priority = 10 }]
       "example.es"  = [{ type = "MX", name = "example.es", content = "mail.example.com", priority = 10 }]
-    }
+    }]
     domains = ["example.com"]
   }
 
@@ -89,11 +89,37 @@ run "domains_outside_cloudflare_are_left_out" {
   }
 }
 
+run "sets_from_several_modules_are_published_together" {
+  command = apply
+
+  variables {
+    records = [
+      {
+        "example.com" = [{ type = "A", name = "*.example.com", content = "10.0.0.1" }]
+      },
+      {
+        "example.com" = [{ type = "MX", name = "example.com", content = "mail.example.org", priority = 10 }]
+        "example.org" = [{ type = "MX", name = "example.org", content = "mail.example.org", priority = 10 }]
+      },
+    ]
+  }
+
+  assert {
+    condition     = keys(cloudflare_dns_record.this) == ["A *.example.com", "MX example.com", "MX example.org"]
+    error_message = "Records of one domain from two sets did not both get published."
+  }
+
+  assert {
+    condition     = keys(data.cloudflare_zone.this) == ["example.com", "example.org"]
+    error_message = "A domain of the second set got no zone lookup, or one got two."
+  }
+}
+
 run "an_mx_without_a_priority_is_refused" {
   command = plan
 
   variables {
-    records = { "example.com" = [{ type = "MX", name = "example.com", content = "mail.example.com" }] }
+    records = [{ "example.com" = [{ type = "MX", name = "example.com", content = "mail.example.com" }] }]
   }
 
   expect_failures = [var.records]
@@ -103,7 +129,7 @@ run "a_txt_with_a_quote_is_refused" {
   command = plan
 
   variables {
-    records = { "example.com" = [{ type = "TXT", name = "example.com", content = "v=spf1 \"mx\" -all" }] }
+    records = [{ "example.com" = [{ type = "TXT", name = "example.com", content = "v=spf1 \"mx\" -all" }] }]
   }
 
   expect_failures = [var.records]
@@ -113,7 +139,7 @@ run "a_domain_missing_from_records_is_refused" {
   command = plan
 
   variables {
-    records = { "example.com" = [] }
+    records = [{ "example.com" = [] }]
     domains = ["example.org"]
   }
 

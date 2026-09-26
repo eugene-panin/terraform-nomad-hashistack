@@ -1,15 +1,17 @@
 # dns-cloudflare
 
 Publishes DNS records in Cloudflare, for the domains whose zones are there.
-The records come from the `dns_records` output of the root module (the
-internal wildcard and the mail records) or of the `mail` module.
+The records come in sets, one per module: the `dns_records` output of the
+root module (the internal wildcard) and those of the apps, such as the mail
+records of `eugene-panin/stalwart/nomad`. Records of one domain from
+different sets are published together.
 
 ```hcl
 module "dns" {
   source  = "eugene-panin/hashistack/nomad//modules/dns-cloudflare"
-  version = "~> 0.4"
+  version = "~> 0.6"
 
-  records = module.stack.dns_records
+  records = [module.stack.dns_records, module.mail.dns_records]
   domains = ["infra.example.com", "example.com"]
 }
 ```
@@ -43,7 +45,7 @@ is split into quoted strings of at most 255 characters that join back to the
 original, that host names are not proxied, that a record keeps its own comment
 and the others get `comment`, that each zone is looked up by the
 name of its domain, that domains left out of `domains` get no lookup and no
-records, and that an MX without a priority, a TXT with a quote and a domain
+records, that records of one domain from two sets are all published, and that an MX without a priority, a TXT with a quote and a domain
 missing from `records` are refused. Each check fails when its part of the
 module is removed.
 
@@ -66,8 +68,8 @@ module is removed.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | comment | Comment set on every record that has none of its own, so the records this module owns stand out in the dashboard. | `string` | `"Managed by OpenTofu"` | no |
-| domains | Domains of records whose zone is on this Cloudflare account, each the name of its own zone. Records of other domains are left out. Null means every domain in records. | `set(string)` | `null` | no |
-| records | DNS records keyed by domain, as the dns\_records outputs of the root module and the mail module return them. A record's comment overrides comment. | <pre>map(list(object({<br/>    type     = string<br/>    name     = string<br/>    content  = string<br/>    priority = optional(number)<br/>    comment  = optional(string)<br/>  })))</pre> | n/a | yes |
+| domains | Domains of records whose zone is on this Cloudflare account, each the name of its own zone. Records of other domains are left out. Null means every domain of every set in records. | `set(string)` | `null` | no |
+| records | Sets of DNS records keyed by domain, one per module that returns them, such as the dns\_records outputs of the root module and of an app. Records of the same domain from different sets are published together. A record's comment overrides comment. | <pre>list(map(list(object({<br/>    type     = string<br/>    name     = string<br/>    content  = string<br/>    priority = optional(number)<br/>    comment  = optional(string)<br/>  }))))</pre> | n/a | yes |
 | ttl | TTL of the records in seconds; 1 lets Cloudflare choose. | `number` | `1` | no |
 
 ## Outputs

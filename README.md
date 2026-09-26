@@ -58,13 +58,14 @@ directly, with `source = "eugene-panin/hashistack/nomad//modules/<module>"`.
 | [`traefik`](modules/traefik) | Traefik on Nomad: an internal entrypoint with a DNS-01 wildcard, public entrypoints with HTTP-01 |
 | [`mail`](modules/mail) | Stalwart mail server for several domains: SMTP, submission, IMAP, DKIM, MTA-STS, certificates through TLS-ALPN-01 |
 | [`dns-cloudflare`](modules/dns-cloudflare) | DNS records in Cloudflare zones, from the `dns_records` output of the root module or of `mail` |
+| [`backup-b2`](modules/backup-b2) | A private Backblaze B2 bucket for restic backups and a key limited to it |
 
 ## Requirements
 
 - OpenTofu or Terraform >= 1.11; no feature specific to either is used
 - Providers `hashicorp/consul` 2.x, `hashicorp/vault` 5.x, `hashicorp/nomad` 2.x,
-  `hashicorp/tls` 4.x, `hashicorp/random` 3.x, and `cloudflare/cloudflare` 5.x
-  for `dns-cloudflare`
+  `hashicorp/tls` 4.x, `hashicorp/random` 3.x, `cloudflare/cloudflare` 5.x
+  for `dns-cloudflare`, and `Backblaze/b2` 0.14 or later for `backup-b2`
 
 ## Tested
 

@@ -7,6 +7,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `backup-b2` module: a private, encrypted Backblaze B2 bucket for restic and
+  an application key limited to it, with the restic repository and key as
+  outputs. Files restic deletes stay recoverable for `keep_deleted_days`, 30
+  by default, then stop costing storage. Tested with `tofu test` and
+  `terraform test` and a mocked provider, with negative controls.
+
+## [0.4.0] - 2026-09-26
+
+### Added
+
 - The root module sets up the whole stack from a few inputs: workload
   identity, Traefik with the Consul, Nomad and Vault UIs, and optionally mail
   with an `info@` mailbox per domain that also receives `postmaster@` and

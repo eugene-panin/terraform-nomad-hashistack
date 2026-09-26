@@ -24,7 +24,7 @@ test-terraform:
 TF_BINARY ?= tofu
 
 module-tests:
-	for dir in modules/*/; do \
+	for dir in ./ modules/*/; do \
 	  if [ -d "$$dir/tests" ]; then \
 	    (cd "$$dir" && $(TF_BINARY) init -backend=false -input=false >/dev/null && $(TF_BINARY) test) || exit 1; \
 	  fi; \

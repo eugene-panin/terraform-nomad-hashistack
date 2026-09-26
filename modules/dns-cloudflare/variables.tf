@@ -1,42 +1,42 @@
 variable "records" {
-  description = "DNS records keyed by domain, as the dns_records outputs of the root module and the mail module return them. A record's comment overrides comment."
-  type = map(list(object({
+  description = "Sets of DNS records keyed by domain, one per module that returns them, such as the dns_records outputs of the root module and of an app. Records of the same domain from different sets are published together. A record's comment overrides comment."
+  type = list(map(list(object({
     type     = string
     name     = string
     content  = string
     priority = optional(number)
     comment  = optional(string)
-  })))
+  }))))
 
   validation {
     condition = alltrue(flatten([
-      for d, rs in var.records : [for r in rs : contains(["A", "AAAA", "CNAME", "MX", "TXT"], r.type)]
+      for set in var.records : [for d, rs in set : [for r in rs : contains(["A", "AAAA", "CNAME", "MX", "TXT"], r.type)]]
     ]))
     error_message = "records supports only A, AAAA, CNAME, MX and TXT."
   }
 
   validation {
     condition = alltrue(flatten([
-      for d, rs in var.records : [for r in rs : r.type != "TXT" || !strcontains(r.content, "\"") && !strcontains(r.content, "\\")]
+      for set in var.records : [for d, rs in set : [for r in rs : r.type != "TXT" || !strcontains(r.content, "\"") && !strcontains(r.content, "\\")]]
     ]))
     error_message = "TXT contents must not contain quotes or backslashes."
   }
 
   validation {
     condition = alltrue(flatten([
-      for d, rs in var.records : [for r in rs : r.type != "MX" || r.priority != null]
+      for set in var.records : [for d, rs in set : [for r in rs : r.type != "MX" || r.priority != null]]
     ]))
     error_message = "Every MX record needs a priority."
   }
 }
 
 variable "domains" {
-  description = "Domains of records whose zone is on this Cloudflare account, each the name of its own zone. Records of other domains are left out. Null means every domain in records."
+  description = "Domains of records whose zone is on this Cloudflare account, each the name of its own zone. Records of other domains are left out. Null means every domain of every set in records."
   type        = set(string)
   default     = null
 
   validation {
-    condition     = var.domains == null || alltrue([for d in coalesce(var.domains, []) : contains(keys(var.records), d)])
+    condition     = var.domains == null || alltrue([for d in coalesce(var.domains, []) : anytrue([for set in var.records : contains(keys(set), d)])])
     error_message = "Every domain in domains must be a key of records."
   }
 }

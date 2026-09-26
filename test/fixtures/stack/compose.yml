@@ -41,7 +41,7 @@ services:
   challtestsrv:
     image: ghcr.io/letsencrypt/pebble-challtestsrv:2.10.1
     command:
-      - -defaultIPv4=172.30.77.10
+      - -defaultIPv4=${STACK_NET_PREFIX:-10.231.77}.10
       - -defaultIPv6=
       - -http01=
       - -https01=
@@ -101,13 +101,13 @@ services:
       - 127.0.0.1:10993:993
     networks:
       default:
-        ipv4_address: 172.30.77.10
+        ipv4_address: ${STACK_NET_PREFIX:-10.231.77}.10
 
 networks:
   default:
     ipam:
       config:
-        - subnet: 172.30.77.0/24
+        - subnet: ${STACK_NET_PREFIX:-10.231.77}.0/24
 
 volumes:
   ca-certificates:

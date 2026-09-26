@@ -5,6 +5,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking.** The platform no longer runs mail. The `mail` module, the
+  `mail` input of the root module and its `mailboxes`, `mail_passwords` and
+  `mail_job_id` outputs move to their own module,
+  [`eugene-panin/stalwart/nomad`](https://github.com/eugene-panin/terraform-nomad-stalwart),
+  the first app on the platform. To keep an existing server, call it next to
+  the root module with the same inputs and add
+  `moved { from = module.<stack>.module.mail[0] to = module.<mail> }`; nothing
+  is replaced.
+- **Breaking.** `dns-cloudflare` takes `records` as a list of record sets, one
+  per module, and publishes the records of one domain from several sets
+  together: `records = [module.stack.dns_records, module.mail.dns_records]`.
+- `dns_records` of the root module returns only the internal wildcard.
+
+### Added
+
+- `vault_kv_path` output of the root module, for the modules of apps.
+
 ### Added
 
 - `backup-b2` module: a private, encrypted Backblaze B2 bucket for restic and

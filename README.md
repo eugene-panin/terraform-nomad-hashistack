@@ -2,7 +2,7 @@
 
 OpenTofu and Terraform modules for the platform of a Consul, Vault and Nomad
 stack: how workloads prove who they are to Consul and Vault, how traffic gets
-to them, DNS and backups. Apps run on the platform as Nomad jobs and come as
+to them, and DNS. Apps run on the platform as Nomad jobs and come as
 modules of their own. The hosts come from the Ansible collection
 [`eugene_panin.hashistack`](https://github.com/eugene-panin/ansible-collection-hashistack).
 
@@ -79,14 +79,13 @@ directly, with `source = "eugene-panin/hashistack/nomad//modules/<module>"`.
 | [`workload-identity`](modules/workload-identity) | Consul and Vault auth for Nomad workload identities; each job reads only its own secrets |
 | [`traefik`](modules/traefik) | Traefik on Nomad: an internal entrypoint with a DNS-01 wildcard, public entrypoints with HTTP-01 |
 | [`dns-cloudflare`](modules/dns-cloudflare) | DNS records in Cloudflare zones, from the `dns_records` outputs of the root module and of the apps |
-| [`backup-b2`](modules/backup-b2) | A private Backblaze B2 bucket for restic backups and a key limited to it |
 
 ## Requirements
 
 - OpenTofu or Terraform >= 1.11; no feature specific to either is used
 - Providers `hashicorp/consul` 2.x, `hashicorp/vault` 5.x, `hashicorp/nomad` 2.x,
-  `hashicorp/tls` 4.x, `hashicorp/random` 3.x, `cloudflare/cloudflare` 5.x
-  for `dns-cloudflare`, and `Backblaze/b2` 0.14 or later for `backup-b2`
+  `hashicorp/tls` 4.x, `hashicorp/random` 3.x, and `cloudflare/cloudflare` 5.x
+  for `dns-cloudflare`
 
 ## Tested
 

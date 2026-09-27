@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-27
+
+### Removed
+
+- **Breaking.** `backup-b2`. Where backups go is the user's choice, not the
+  platform's: the `backup` role of `eugene_panin.base` backs up to any restic
+  repository, an SSH server by default. A B2 bucket and key are two resources
+  of the `Backblaze/b2` provider in the caller's own configuration.
+
 ## [0.6.0] - 2026-09-27
 
 ### Changed

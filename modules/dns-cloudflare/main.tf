@@ -1,5 +1,13 @@
 locals {
-  domains = var.domains == null ? toset(flatten([for set in var.records : keys(set)])) : var.domains
+  all_domains = toset(flatten([for set in var.records : keys(set)]))
+
+  zone_of = var.zones == null ? { for d in local.all_domains : d => d } : {
+    for d, zs in {
+      for d in local.all_domains : d => [for z in var.zones : z if d == z || endswith(d, ".${z}")]
+    } : d => [for z in zs : z if length(z) == max([for c in zs : length(c)]...)][0] if length(zs) > 0
+  }
+
+  domains = var.domains == null ? toset(keys(local.zone_of)) : toset([for d in var.domains : d if contains(keys(local.zone_of), d)])
 
   records = {
     for r in flatten([
@@ -15,7 +23,7 @@ locals {
 }
 
 data "cloudflare_zone" "this" {
-  for_each = local.domains
+  for_each = toset([for d in local.domains : local.zone_of[d]])
 
   filter = {
     name = each.key
@@ -25,7 +33,7 @@ data "cloudflare_zone" "this" {
 resource "cloudflare_dns_record" "this" {
   for_each = local.records
 
-  zone_id  = data.cloudflare_zone.this[each.value.domain].zone_id
+  zone_id  = data.cloudflare_zone.this[local.zone_of[each.value.domain]].zone_id
   name     = each.value.name
   type     = each.value.type
   content  = each.value.content

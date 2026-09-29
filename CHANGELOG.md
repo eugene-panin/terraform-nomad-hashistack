@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `dns-cloudflare` takes `zones`, the zones on the Cloudflare account; the
+  records of a domain go into the zone it is under, so `infra_domain` can be a
+  subdomain, such as `infra.example.com` in the zone `example.com`. Without
+  `zones` nothing changes.
+
 ## [0.7.0] - 2026-09-27
 
 ### Removed

@@ -145,3 +145,61 @@ run "a_domain_missing_from_records_is_refused" {
 
   expect_failures = [var.domains]
 }
+
+run "a_domain_goes_into_the_zone_it_is_under" {
+  command = apply
+
+  variables {
+    records = [
+      { "infra.example.com" = [{ type = "A", name = "*.infra.example.com", content = "10.0.0.1" }] },
+      {
+        "example.com"       = [{ type = "MX", name = "example.com", content = "mail.example.com", priority = 10 }]
+        "a.lab.example.com" = [{ type = "A", name = "a.lab.example.com", content = "10.0.0.2" }]
+        "example.es"        = [{ type = "MX", name = "example.es", content = "mail.example.com", priority = 10 }]
+        "notexample.com"    = [{ type = "A", name = "notexample.com", content = "10.0.0.3" }]
+      },
+    ]
+    zones = ["example.com", "lab.example.com"]
+  }
+
+  assert {
+    condition     = keys(data.cloudflare_zone.this) == ["example.com", "lab.example.com"]
+    error_message = "The zones looked up are not the zones the domains are under."
+  }
+
+  assert {
+    condition     = keys(cloudflare_dns_record.this) == ["A *.infra.example.com", "A a.lab.example.com", "MX example.com"]
+    error_message = "A record of a domain under no zone was published, or one under a zone was left out."
+  }
+
+  assert {
+    condition = (
+      cloudflare_dns_record.this["A *.infra.example.com"].zone_id == data.cloudflare_zone.this["example.com"].zone_id &&
+      cloudflare_dns_record.this["A a.lab.example.com"].zone_id == data.cloudflare_zone.this["lab.example.com"].zone_id
+    )
+    error_message = "A record went into another zone than the longest one its domain is under."
+  }
+
+  assert {
+    condition     = output.zone_ids["infra.example.com"] == data.cloudflare_zone.this["example.com"].zone_id
+    error_message = "zone_ids does not give the zone of a domain under it."
+  }
+}
+
+run "domains_narrow_what_zones_publish" {
+  command = apply
+
+  variables {
+    records = [{
+      "infra.example.com" = [{ type = "A", name = "*.infra.example.com", content = "10.0.0.1" }]
+      "example.com"       = [{ type = "MX", name = "example.com", content = "mail.example.com", priority = 10 }]
+    }]
+    zones   = ["example.com"]
+    domains = ["infra.example.com"]
+  }
+
+  assert {
+    condition     = keys(cloudflare_dns_record.this) == ["A *.infra.example.com"]
+    error_message = "A domain left out of domains was published."
+  }
+}

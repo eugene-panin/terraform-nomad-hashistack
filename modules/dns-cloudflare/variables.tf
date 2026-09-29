@@ -30,8 +30,14 @@ variable "records" {
   }
 }
 
+variable "zones" {
+  description = "Zones on this Cloudflare account. A domain of records goes into the zone it is or is under, the longest such: infra.example.com into example.com unless infra.example.com is a zone too. Records of a domain under no zone are left out. Null means every domain is a zone of its own name."
+  type        = set(string)
+  default     = null
+}
+
 variable "domains" {
-  description = "Domains of records whose zone is on this Cloudflare account, each the name of its own zone. Records of other domains are left out. Null means every domain of every set in records."
+  description = "Domains of records to publish; records of other domains are left out. Null means every domain of every set in records, or with zones, every one under a zone."
   type        = set(string)
   default     = null
 

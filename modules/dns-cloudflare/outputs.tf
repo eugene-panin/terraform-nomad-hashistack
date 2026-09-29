@@ -4,6 +4,6 @@ output "record_ids" {
 }
 
 output "zone_ids" {
-  description = "Cloudflare zone ID of each domain."
-  value       = { for d, z in data.cloudflare_zone.this : d => z.zone_id }
+  description = "Cloudflare zone ID of each domain, the zone it is or is under."
+  value       = { for d in local.domains : d => data.cloudflare_zone.this[local.zone_of[d]].zone_id }
 }

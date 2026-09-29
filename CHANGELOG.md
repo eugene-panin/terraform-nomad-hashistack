@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-29
+
 ### Added
 
 - `dns-cloudflare` takes `zones`, the zones on the Cloudflare account; the

@@ -1,6 +1,6 @@
 locals {
   secret_name = "${var.namespace}/${var.job_name}/acme"
-  volume_name = "${var.job_name}-acme"
+  volume_name = "${var.job_name}-certificates"
 }
 
 resource "vault_kv_secret_v2" "acme" {
@@ -10,15 +10,15 @@ resource "vault_kv_secret_v2" "acme" {
   data_json_wo_version = var.dns_provider_env_version
 }
 
-resource "nomad_dynamic_host_volume" "acme" {
+resource "nomad_dynamic_host_volume" "certificates" {
   name      = local.volume_name
   namespace = var.namespace
   plugin_id = "mkdir"
 
   parameters = {
     mode = "0700"
-    uid  = "65534"
-    gid  = "65534"
+    uid  = "0"
+    gid  = "0"
   }
 
   capability {
@@ -32,8 +32,8 @@ resource "nomad_job" "traefik" {
     job_name            = var.job_name
     namespace           = var.namespace
     datacenters         = var.datacenters
-    volume_name         = nomad_dynamic_host_volume.acme.name
-    traefik_version     = var.traefik_version
+    volume_name         = nomad_dynamic_host_volume.certificates.name
+    image               = var.image
     domain              = var.domain
     acme_email          = var.acme_email
     acme_ca_server      = var.acme_ca_server
@@ -51,4 +51,12 @@ resource "nomad_job" "traefik" {
   purge_on_destroy = true
 
   depends_on = [vault_kv_secret_v2.acme]
+}
+
+removed {
+  from = nomad_dynamic_host_volume.acme
+
+  lifecycle {
+    destroy = false
+  }
 }

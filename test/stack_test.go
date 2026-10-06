@@ -54,9 +54,16 @@ func startStack(t *testing.T) {
 		status, _ := call(t, http.MethodGet, vaultAddr+"/v1/sys/health", nil, nil)
 		return status == http.StatusOK
 	})
-	waitFor(t, 2*time.Minute, "Nomad has a ready node", func() bool {
+	waitFor(t, 2*time.Minute, "Nomad has a ready node with Docker", func() bool {
 		status, body := call(t, http.MethodGet, nomadAddr+"/v1/nodes", nil, nil)
-		return status == http.StatusOK && bytes.Contains(body, []byte(`"Status":"ready"`))
+		var nodes []struct {
+			Status  string
+			Drivers map[string]struct{ Healthy bool }
+		}
+		if status != http.StatusOK || json.Unmarshal(body, &nodes) != nil {
+			return false
+		}
+		return len(nodes) > 0 && nodes[0].Status == "ready" && nodes[0].Drivers["docker"].Healthy
 	})
 }
 

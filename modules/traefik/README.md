@@ -33,11 +33,16 @@ module "traefik" {
 - A KV secret at `<vault_kv_path>/<namespace>/<job_name>/acme` holding
   `dns_provider_env`. The value is write-only: it never reaches the state or
   the plan. Change `dns_provider_env_version` to write a new one.
-- A dynamic host volume `<job_name>-acme`, owned by `nobody`, where Traefik
-  keeps its ACME account and certificates across allocations.
-- The job. Traefik runs with the `exec` driver as `nobody`, from the official
-  release checked against its checksums file, with every capability dropped
-  except `net_bind_service`. It reads the Consul catalog with its own
+- A dynamic host volume `<job_name>-certificates`, owned by root and closed to
+  everyone else, where Traefik keeps its ACME account and certificates across
+  allocations.
+- The job. Traefik runs with the `docker` driver from the official image,
+  pinned by its digest, on the network of the host, so that it binds the
+  addresses of the host networks and sees the addresses of the clients. Docker
+  gives a process that is not root no capability, and Traefik binds ports
+  below 1024, so it runs as root of its container with every capability
+  dropped except `net_bind_service`, a read-only root file system and
+  `no-new-privileges`. It reads the Consul catalog with its own
   workload identity, and the DNS provider credentials from Vault with its
   own.
 
@@ -70,14 +75,16 @@ the `mail` module does, and its test covers it.
 
 - The `workload-identity` module, or equivalent: Traefik's task needs a Consul
   token that reads the catalog and a Vault token that reads its own secret.
-- The `exec` driver and the `mkdir` host volume plugin on the client, and the
+- The `docker` driver and the `mkdir` host volume plugin on the client, and the
   host networks named in `internal` and `public`.
-- Clients reach GitHub releases to fetch Traefik, with system CA certificates.
+- Clients pull the image, from Docker Hub unless `image` names another
+  registry.
 
 ## Tested
 
-The test runs Consul, Vault, Nomad and the Pebble ACME server in Docker, with
-ports below 1024 privileged in the Nomad container, and applies the module on
+The test runs Consul, Vault, Nomad, a Docker daemon in the network of Nomad
+and the Pebble ACME server in Docker, with ports below 1024 privileged in the
+Nomad container, and applies the module on
 ports 443, 80 and 9443. A second plan must be empty, the DNS provider
 credentials must be in Vault and absent from the state. Then:
 
@@ -127,12 +134,12 @@ environment, the wildcard, the redirect, and the ACME server's CA.
 | dns\_provider\_env | Environment the DNS provider needs, such as { CF\_DNS\_API\_TOKEN = "..." }. Written to Vault as a write-only value, so it never reaches the state, and read by the job with its own identity. | `map(string)` | n/a | yes |
 | dns\_provider\_env\_version | Version of dns\_provider\_env. Raise it to write a changed value to Vault; a write-only value is not compared otherwise. | `number` | `1` | no |
 | domain | Domain Traefik serves on the internal entrypoint. It gets one wildcard certificate, *.<domain>, through DNS-01. | `string` | n/a | yes |
+| image | The image of Traefik, pinned by the digest of its index for every architecture so that no retagging changes it. | `string` | `"traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0"` | no |
 | internal | Internal entrypoint: the Nomad host network it binds to and its port. Routers use it unless they name another. | <pre>object({<br/>    host_network = optional(string, "default")<br/>    port         = optional(number, 443)<br/>  })</pre> | `{}` | no |
 | job\_name | Name of the Nomad job; also the second segment of its secret path in Vault. | `string` | `"traefik"` | no |
 | namespace | Nomad namespace of the job; also the first segment of its secret path in Vault. | `string` | `"default"` | no |
 | public | Public entrypoints, HTTP redirecting to HTTPS, with certificates through HTTP-01. Only routers that name public-https use them. | <pre>object({<br/>    enabled      = optional(bool, false)<br/>    host_network = optional(string, "public")<br/>    http_port    = optional(number, 80)<br/>    https_port   = optional(number, 443)<br/>  })</pre> | `{}` | no |
 | routes | Routes to backends outside Nomad, such as the Nomad, Consul and Vault UIs, on the internal entrypoint, keyed by name. | <pre>map(object({<br/>    host = string<br/>    url  = string<br/>  }))</pre> | `{}` | no |
-| traefik\_version | Traefik release, downloaded from GitHub and checked against its published checksums. | `string` | `"3.7.13"` | no |
 | vault\_kv\_path | Path of the KV version 2 engine the workload-identity module mounts. | `string` | `"secret"` | no |
 
 ## Outputs

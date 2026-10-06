@@ -1,3 +1,5 @@
+data_dir = "/nomad/data"
+
 consul {
   address = "consul:8500"
   token   = "test-consul-management"
@@ -29,5 +31,11 @@ client {
 
   host_network "public" {
     interface = "eth0"
+  }
+}
+
+plugin "docker" {
+  config {
+    endpoint = "tcp://127.0.0.1:2375"
   }
 }

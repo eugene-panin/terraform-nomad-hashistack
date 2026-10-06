@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking.** `traefik` runs the official image, pinned by its digest, with
+  the `docker` driver on the network of the host, instead of the release
+  binary under `exec`. `image` replaces `traefik_version`. Docker gives a
+  process that is not root no capability, so Traefik runs as root of its
+  container with only `net_bind_service`, a read-only root file system and
+  `no-new-privileges`. Its certificates move to a new volume,
+  `<job_name>-certificates`, owned by root, and Traefik requests them again.
+  The module no longer manages `<job_name>-acme` but leaves it in place: Nomad
+  refuses to delete it while the old allocation holds it. Delete it after the
+  apply with `nomad volume delete -type host <id>`.
+
 ## [0.8.0] - 2026-09-29
 
 ### Added

@@ -95,6 +95,12 @@ variable "routes" {
   default = {}
 }
 
+variable "image" {
+  description = "The image of Traefik; null takes the default of the module."
+  type        = string
+  default     = null
+}
+
 module "workload_identity" {
   source = "../../modules/workload-identity"
 
@@ -116,5 +122,6 @@ module "traefik" {
   public                = var.public
   consul                = var.consul
   routes                = var.routes
+  image                 = var.image
   vault_kv_path         = module.workload_identity.vault_kv_path
 }

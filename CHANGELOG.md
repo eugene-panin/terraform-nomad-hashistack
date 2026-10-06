@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-06
+
 ### Changed
 
 - **Breaking.** `traefik` runs the official image, pinned by its digest, with

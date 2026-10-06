@@ -5,7 +5,7 @@ output "job_id" {
 
 output "acme_volume" {
   description = "Name of the dynamic host volume holding the ACME account and certificates."
-  value       = nomad_dynamic_host_volume.acme.name
+  value       = nomad_dynamic_host_volume.certificates.name
 }
 
 output "secret_path" {

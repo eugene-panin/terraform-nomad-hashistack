@@ -119,8 +119,14 @@ variable "datacenters" {
   default     = ["*"]
 }
 
-variable "traefik_version" {
-  description = "Traefik release, downloaded from GitHub and checked against its published checksums."
+variable "image" {
+  description = "The image of Traefik, pinned by the digest of its index for every architecture so that no retagging changes it."
   type        = string
-  default     = "3.7.13"
+  nullable    = false
+  default     = "traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0"
+
+  validation {
+    condition     = can(regex("@sha256:[0-9a-f]{64}$", var.image))
+    error_message = "image must be pinned by its digest: name:tag@sha256:<64 hex digits>."
+  }
 }

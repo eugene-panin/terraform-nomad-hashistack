@@ -73,6 +73,7 @@ services:
       - -config=/etc/nomad.d/nomad.hcl
     volumes:
       - ./nomad.hcl:/etc/nomad.d/nomad.hcl:ro
+      - nomad-data:/nomad/data
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - ca-certificates:/etc/ssl/certs:ro
     cgroup: host
@@ -103,6 +104,17 @@ services:
       default:
         ipv4_address: ${STACK_NET_PREFIX:-10.231.77}.10
 
+  docker:
+    image: mirror.gcr.io/library/docker:28.5-dind
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - nomad-data:/nomad/data
+    privileged: true
+    network_mode: service:nomad
+    depends_on:
+      - nomad
+
 networks:
   default:
     ipam:
@@ -111,3 +123,4 @@ networks:
 
 volumes:
   ca-certificates:
+  nomad-data:

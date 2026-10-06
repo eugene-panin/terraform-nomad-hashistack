@@ -43,23 +43,16 @@ job "${job_name}" {
     }
 
     task "traefik" {
-      driver = "exec"
-      user   = "nobody"
-
-      artifact {
-        source      = "https://github.com/traefik/traefik/releases/download/v${traefik_version}/traefik_v${traefik_version}_linux_$${attr.cpu.arch}.tar.gz"
-        destination = "local/traefik"
-
-        options {
-          checksum = "file:https://github.com/traefik/traefik/releases/download/v${traefik_version}/traefik_v${traefik_version}_checksums.txt"
-        }
-      }
+      driver = "docker"
 
       config {
-        command = "local/traefik/traefik"
-        args    = ["--configfile=/local/traefik.yml"]
-        cap_drop = ["all"]
-        cap_add  = ["net_bind_service"]
+        image           = "${image}"
+        network_mode    = "host"
+        args            = ["--configfile=/local/traefik.yml"]
+        readonly_rootfs = true
+        cap_drop        = ["all"]
+        cap_add         = ["net_bind_service"]
+        security_opt    = ["no-new-privileges"]
       }
 
       volume_mount {

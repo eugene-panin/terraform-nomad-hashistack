@@ -24,6 +24,7 @@ const (
 	pebbleRoots     = "https://127.0.0.1:15000/roots/0"
 	pebbleCA        = "fixtures/stack/pebble.minica.pem"
 	dnsProviderPath = "/bin/true"
+	traefikImage    = "mirror.gcr.io/library/traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0"
 )
 
 const webJob = `
@@ -114,6 +115,7 @@ func TestTraefik(t *testing.T) {
 		NoColor:         true,
 		Vars: map[string]any{
 			"nomad_jwks_url":        nomadJWKSInside,
+			"image":                 traefikImage,
 			"vault_kv_path":         "kv",
 			"domain":                traefikDomain,
 			"acme_email":            "admin@" + traefikDomain,

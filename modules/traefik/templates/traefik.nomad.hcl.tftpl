@@ -123,12 +123,16 @@ ${backend_ca_pem}
               address: "[[ env "NOMAD_IP_internal" ]]:[[ env "NOMAD_PORT_internal" ]]"
               asDefault: true
               http:
+%{ if internal_tls.mode == "acme-dns" ~}
                 tls:
                   certResolver: dns
                   domains:
                     - main: "${domain}"
                       sans:
                         - "*.${domain}"
+%{ else ~}
+                tls: {}
+%{ endif ~}
 %{ if public.enabled ~}
             public-http:
               address: "[[ env "NOMAD_IP_public_http" ]]:[[ env "NOMAD_PORT_public_http" ]]"
@@ -158,7 +162,9 @@ ${backend_ca_pem}
             file:
               filename: /local/dynamic.yml
               watch: true
+%{ if internal_tls.mode == "acme-dns" || public.enabled ~}
           certificatesResolvers:
+%{ if internal_tls.mode == "acme-dns" ~}
             dns:
               acme:
                 email: "${acme_email}"
@@ -168,6 +174,7 @@ ${backend_ca_pem}
                   provider: "${dns_provider}"
                   propagation:
                     disableChecks: ${dns_disable_checks}
+%{ endif ~}
 %{ if public.enabled ~}
             http:
               acme:
@@ -177,9 +184,30 @@ ${backend_ca_pem}
                 httpChallenge:
                   entryPoint: public-http
 %{ endif ~}
+%{ endif ~}
         EOT
       }
 
+%{ if internal_tls.mode == "ca" ~}
+      template {
+        destination     = "local/internal-cert.pem"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+${internal_tls.cert_pem}
+        EOT
+      }
+
+      template {
+        destination     = "local/internal-key.pem"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+        data            = <<-EOT
+${internal_tls.key_pem}
+        EOT
+      }
+
+%{ endif ~}
       template {
         destination     = "local/dynamic.yml"
         change_mode     = "noop"
@@ -214,6 +242,14 @@ ${backend_ca_pem}
               proxy-protocol:
                 proxyProtocol:
                   version: 2
+%{ if internal_tls.mode == "ca" ~}
+          tls:
+            stores:
+              default:
+                defaultCertificate:
+                  certFile: /local/internal-cert.pem
+                  keyFile: /local/internal-key.pem
+%{ endif ~}
         EOT
       }
 

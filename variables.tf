@@ -25,10 +25,21 @@ variable "dns_provider" {
 }
 
 variable "dns_provider_env" {
-  description = "Environment of the DNS provider, such as { CF_DNS_API_TOKEN = \"...\" }. Written to Vault as a write-only value, never to the state."
+  description = "Environment of the DNS provider, such as { CF_DNS_API_TOKEN = \"...\" }. Written to Vault as a write-only value, never to the state. Empty when internal_tls.mode is ca."
   type        = map(string)
   sensitive   = true
   ephemeral   = true
+  default     = {}
+}
+
+variable "internal_tls" {
+  description = "How the internal entrypoint gets its certificate: mode acme-dns (a Let's Encrypt wildcard through DNS-01, the default) or ca (a wildcard signed by the project CA, given as cert_pem and key_pem — no ACME, no DNS token)."
+  type = object({
+    mode     = optional(string, "acme-dns")
+    cert_pem = optional(string)
+    key_pem  = optional(string)
+  })
+  default = {}
 }
 
 variable "dns_provider_env_version" {

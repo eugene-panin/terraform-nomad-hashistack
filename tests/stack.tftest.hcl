@@ -39,3 +39,17 @@ run "platform" {
     error_message = "The Traefik job was not created."
   }
 }
+
+run "internal_ca_mode_renders" {
+  command = apply
+
+  variables {
+    internal_tls     = { mode = "ca", cert_pem = "CERT", key_pem = "KEY" }
+    dns_provider_env = {}
+  }
+
+  assert {
+    condition     = output.traefik_job_id != null
+    error_message = "The Traefik job was not created with an internal-CA certificate."
+  }
+}

@@ -41,6 +41,7 @@ resource "nomad_job" "traefik" {
     dns_provider        = var.dns_provider
     dns_disable_checks  = !var.dns_propagation_check
     internal            = var.internal
+    internal_tls        = var.internal_tls
     public              = var.public
     consul              = var.consul
     routes              = var.routes

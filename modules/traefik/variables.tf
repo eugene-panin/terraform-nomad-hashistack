@@ -54,6 +54,31 @@ variable "internal" {
   default = {}
 }
 
+variable "internal_tls" {
+  description = <<-EOT
+    How the internal entrypoint gets its certificate.
+    mode "acme-dns" (the default): a wildcard *.<domain> from Let's Encrypt
+    through the DNS-01 challenge (needs dns_provider and its token).
+    mode "ca": a wildcard *.<domain> signed by the project's own CA, given as
+    cert_pem and key_pem — no ACME and no DNS token, for when there is no API
+    access to the zone. Browsers trust it through `damstack trust`.
+  EOT
+  type = object({
+    mode     = optional(string, "acme-dns")
+    cert_pem = optional(string)
+    key_pem  = optional(string)
+  })
+  default = {}
+  validation {
+    condition     = contains(["acme-dns", "ca"], var.internal_tls.mode)
+    error_message = "internal_tls.mode must be acme-dns or ca."
+  }
+  validation {
+    condition     = var.internal_tls.mode != "ca" || (var.internal_tls.cert_pem != null && var.internal_tls.key_pem != null)
+    error_message = "internal_tls.mode ca needs cert_pem and key_pem (a wildcard signed by the project CA)."
+  }
+}
+
 variable "public" {
   description = "Public entrypoints, HTTP redirecting to HTTPS, with certificates through HTTP-01. Only routers that name public-https use them."
   type = object({

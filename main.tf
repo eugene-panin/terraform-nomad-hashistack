@@ -31,6 +31,7 @@ module "traefik" {
   dns_provider             = var.dns_provider
   dns_provider_env         = var.dns_provider_env
   dns_provider_env_version = var.dns_provider_env_version
+  internal_tls             = var.internal_tls
   vault_kv_path            = module.workload_identity.vault_kv_path
 
   public         = { enabled = var.public }

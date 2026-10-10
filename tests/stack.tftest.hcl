@@ -40,6 +40,19 @@ run "platform" {
   }
 }
 
+run "traefik_dashboard_is_listed_when_on" {
+  command = apply
+
+  variables {
+    traefik_dashboard = true
+  }
+
+  assert {
+    condition     = output.ui_urls["traefik"] == "https://traefik.infra.example.com"
+    error_message = "Traefik's dashboard is not served under the internal domain."
+  }
+}
+
 run "internal_ca_mode_renders" {
   command = apply
 

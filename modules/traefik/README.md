@@ -128,6 +128,7 @@ environment, the wildcard, the redirect, and the ACME server's CA.
 | acme\_email | Contact address for the ACME account. | `string` | n/a | yes |
 | backend\_ca\_pem | PEM CA that signs the certificates of the backends in routes. Null trusts the system store. | `string` | `null` | no |
 | consul | Consul agent Traefik reads the catalog from, as the task's own identity. | <pre>object({<br/>    address = optional(string, "127.0.0.1:8501")<br/>    scheme  = optional(string, "https")<br/>    ca_pem  = optional(string)<br/>  })</pre> | `{}` | no |
+| dashboard\_host | Serve Traefik's dashboard (and its read-only API) on the internal entrypoint at this host name, so only through the private network. Null leaves the dashboard off. It has no login of its own: whoever reaches the internal entrypoint can see the routes. | `string` | `null` | no |
 | datacenters | Datacenters the job may run in. | `list(string)` | <pre>[<br/>  "*"<br/>]</pre> | no |
 | dns\_propagation\_check | Wait until the DNS-01 record is visible before asking for validation. | `bool` | `true` | no |
 | dns\_provider | Provider for the DNS-01 challenge, by its lego name, such as cloudflare. | `string` | `"cloudflare"` | no |
@@ -136,6 +137,7 @@ environment, the wildcard, the redirect, and the ACME server's CA.
 | domain | Domain Traefik serves on the internal entrypoint. It gets one wildcard certificate, *.<domain>, through DNS-01. | `string` | n/a | yes |
 | image | The image of Traefik, pinned by the digest of its index for every architecture so that no retagging changes it. | `string` | `"traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0"` | no |
 | internal | Internal entrypoint: the Nomad host network it binds to and its port. Routers use it unless they name another. | <pre>object({<br/>    host_network = optional(string, "default")<br/>    port         = optional(number, 443)<br/>  })</pre> | `{}` | no |
+| internal\_tls | How the internal entrypoint gets its certificate.<br/>mode "acme-dns" (the default): a wildcard *.<domain> from Let's Encrypt<br/>through the DNS-01 challenge (needs dns\_provider and its token).<br/>mode "ca": a wildcard *.<domain> signed by the project's own CA, given as<br/>cert\_pem and key\_pem — no ACME and no DNS token, for when there is no API<br/>access to the zone. Browsers trust it through `damstack trust`. | <pre>object({<br/>    mode     = optional(string, "acme-dns")<br/>    cert_pem = optional(string)<br/>    key_pem  = optional(string)<br/>  })</pre> | `{}` | no |
 | job\_name | Name of the Nomad job; also the second segment of its secret path in Vault. | `string` | `"traefik"` | no |
 | namespace | Nomad namespace of the job; also the first segment of its secret path in Vault. | `string` | `"default"` | no |
 | public | Public entrypoints, HTTP redirecting to HTTPS, with certificates through HTTP-01. Only routers that name public-https use them. | <pre>object({<br/>    enabled      = optional(bool, false)<br/>    host_network = optional(string, "public")<br/>    http_port    = optional(number, 80)<br/>    https_port   = optional(number, 443)<br/>  })</pre> | `{}` | no |

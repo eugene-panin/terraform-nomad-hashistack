@@ -118,6 +118,10 @@ ${backend_ca_pem}
         data            = <<-EOT
           log:
             level: INFO
+%{ if dashboard_host != null ~}
+          api:
+            dashboard: true
+%{ endif ~}
           entryPoints:
             internal:
               address: "[[ env "NOMAD_IP_internal" ]]:[[ env "NOMAD_PORT_internal" ]]"
@@ -221,6 +225,12 @@ ${internal_tls.key_pem}
                 rule: 'Host(`${route.host}`)'
                 service: ${name}
 %{ endfor ~}
+%{ if dashboard_host != null ~}
+              dashboard:
+                rule: 'Host(`${dashboard_host}`)'
+                entryPoints: [internal]
+                service: api@internal
+%{ endif ~}
             services:
 %{ for name, route in routes ~}
               ${name}:

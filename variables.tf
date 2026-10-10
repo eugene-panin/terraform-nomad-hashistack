@@ -53,3 +53,9 @@ variable "public" {
   type        = bool
   default     = true
 }
+
+variable "traefik_dashboard" {
+  description = "Serve Traefik's dashboard at traefik.<infra_domain>, like the Consul, Nomad and Vault UIs: on the internal entrypoint, through the private network only. It has no login of its own."
+  type        = bool
+  default     = false
+}

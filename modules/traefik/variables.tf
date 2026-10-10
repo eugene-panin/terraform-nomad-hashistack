@@ -105,6 +105,12 @@ variable "consul" {
   }
 }
 
+variable "dashboard_host" {
+  description = "Serve Traefik's dashboard (and its read-only API) on the internal entrypoint at this host name, so only through the private network. Null leaves the dashboard off. It has no login of its own: whoever reaches the internal entrypoint can see the routes."
+  type        = string
+  default     = null
+}
+
 variable "routes" {
   description = "Routes to backends outside Nomad, such as the Nomad, Consul and Vault UIs, on the internal entrypoint, keyed by name."
   type = map(object({

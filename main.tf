@@ -37,5 +37,6 @@ module "traefik" {
   public         = { enabled = var.public }
   consul         = { ca_pem = var.ca_pem }
   routes         = local.ui
+  dashboard_host = var.traefik_dashboard ? "traefik.${var.infra_domain}" : null
   backend_ca_pem = var.ca_pem
 }

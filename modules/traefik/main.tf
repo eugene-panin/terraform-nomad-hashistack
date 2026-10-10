@@ -45,6 +45,7 @@ resource "nomad_job" "traefik" {
     public              = var.public
     consul              = var.consul
     routes              = var.routes
+    dashboard_host      = var.dashboard_host
     backend_ca_pem      = var.backend_ca_pem
     secret_path         = "${var.vault_kv_path}/data/${local.secret_name}"
   })

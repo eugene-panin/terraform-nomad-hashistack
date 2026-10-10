@@ -4,8 +4,11 @@ output "dns_records" {
 }
 
 output "ui_urls" {
-  description = "Addresses of the Consul, Nomad and Vault UIs behind Traefik."
-  value       = { for name, route in local.ui : name => "https://${route.host}" }
+  description = "Addresses of the Consul, Nomad and Vault UIs behind Traefik, and of Traefik's dashboard when traefik_dashboard is on."
+  value = merge(
+    { for name, route in local.ui : name => "https://${route.host}" },
+    var.traefik_dashboard ? { traefik = "https://traefik.${var.infra_domain}" } : {},
+  )
 }
 
 output "traefik_job_id" {

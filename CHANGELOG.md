@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-10
+
+### Added
+
+- `traefik_dashboard` (default off) serves Traefik's dashboard at
+  `traefik.<infra_domain>`, on the internal entrypoint like the Consul, Nomad and
+  Vault UIs, so only through the private network; it is listed in `ui_urls`. The
+  `traefik` module takes it as `dashboard_host`. The dashboard has no login of
+  its own.
+
+## [0.10.0] - 2026-10-09
+
+### Added
+
+- `internal_tls`: the internal entrypoint's certificate is a Let's Encrypt
+  wildcard through DNS-01 (`acme-dns`, the default) or a wildcard signed by the
+  project CA (`ca`), for when DNS records can only be added by hand.
+
 ## [0.9.0] - 2026-10-06
 
 ### Changed

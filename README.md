@@ -133,10 +133,12 @@ No providers.
 | address | Private address the Consul, Vault and Nomad servers listen on, as the hashistack Ansible collection sets them up; the internal names point to it. | `string` | n/a | yes |
 | ca\_pem | PEM CA that signs the TLS certificates of Consul, Vault and Nomad. | `string` | n/a | yes |
 | dns\_provider | Provider Traefik answers the DNS-01 challenge of the internal wildcard with, by its lego name. | `string` | `"cloudflare"` | no |
-| dns\_provider\_env | Environment of the DNS provider, such as { CF\_DNS\_API\_TOKEN = "..." }. Written to Vault as a write-only value, never to the state. | `map(string)` | n/a | yes |
+| dns\_provider\_env | Environment of the DNS provider, such as { CF\_DNS\_API\_TOKEN = "..." }. Written to Vault as a write-only value, never to the state. Empty when internal\_tls.mode is ca. | `map(string)` | `{}` | no |
 | dns\_provider\_env\_version | Raise to write a changed dns\_provider\_env to Vault. | `number` | `1` | no |
 | infra\_domain | Domain of the internal names. Traefik serves *.<infra\_domain> with a DNS-01 wildcard, and the Consul, Nomad and Vault UIs as consul., nomad. and vault.<infra\_domain>. | `string` | n/a | yes |
+| internal\_tls | How the internal entrypoint gets its certificate: mode acme-dns (a Let's Encrypt wildcard through DNS-01, the default) or ca (a wildcard signed by the project CA, given as cert\_pem and key\_pem — no ACME, no DNS token). | <pre>object({<br/>    mode     = optional(string, "acme-dns")<br/>    cert_pem = optional(string)<br/>    key_pem  = optional(string)<br/>  })</pre> | `{}` | no |
 | public | Open the public HTTP and HTTPS entrypoints of Traefik, for apps that serve the internet. | `bool` | `true` | no |
+| traefik\_dashboard | Serve Traefik's dashboard at traefik.<infra\_domain>, like the Consul, Nomad and Vault UIs: on the internal entrypoint, through the private network only. It has no login of its own. | `bool` | `false` | no |
 
 ## Outputs
 
@@ -144,7 +146,7 @@ No providers.
 | ---- | ----------- |
 | dns\_records | Public DNS records the platform needs, keyed by domain: the wildcard of the internal names. Publish them with modules/dns-cloudflare, together with the records of the apps, or by hand for other providers. |
 | traefik\_job\_id | ID of the Traefik job in Nomad. |
-| ui\_urls | Addresses of the Consul, Nomad and Vault UIs behind Traefik. |
+| ui\_urls | Addresses of the Consul, Nomad and Vault UIs behind Traefik, and of Traefik's dashboard when traefik\_dashboard is on. |
 | vault\_kv\_path | Path of the Vault KV version 2 engine apps keep their secrets in; a job reads <path>/<namespace>/<job>/*. Pass it to the vault\_kv\_path input of an app module. |
 <!-- END_TF_DOCS -->
 

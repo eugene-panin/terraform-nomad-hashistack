@@ -66,3 +66,12 @@ run "internal_ca_mode_renders" {
     error_message = "The Traefik job was not created with an internal-CA certificate."
   }
 }
+
+run "memory_oversubscription_is_on" {
+  command = apply
+
+  assert {
+    condition     = nomad_scheduler_config.this.memory_oversubscription_enabled && nomad_scheduler_config.this.scheduler_algorithm == "binpack"
+    error_message = "Tasks must be able to reserve their usual memory and grow to memory_max, on the binpack scheduler."
+  }
+}

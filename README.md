@@ -123,7 +123,9 @@ a run, for a look inside.
 
 ## Providers
 
-No providers.
+| Name | Version |
+| ---- | ------- |
+| nomad | >= 2.5, < 3.0 |
 
 ## Inputs
 

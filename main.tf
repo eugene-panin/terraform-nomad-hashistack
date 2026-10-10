@@ -40,3 +40,18 @@ module "traefik" {
   dashboard_host = var.traefik_dashboard ? "traefik.${var.infra_domain}" : null
   backend_ca_pem = var.ca_pem
 }
+
+# The scheduler as it was set up (binpack, preemption for system jobs only), with
+# memory oversubscription on: a task reserves its usual memory (resources.memory,
+# what placement counts) and may grow to resources.memory_max, so reservations
+# follow real use instead of the worst case.
+resource "nomad_scheduler_config" "this" {
+  scheduler_algorithm             = "binpack"
+  memory_oversubscription_enabled = true
+  preemption_config = {
+    batch_scheduler_enabled    = false
+    service_scheduler_enabled  = false
+    sysbatch_scheduler_enabled = false
+    system_scheduler_enabled   = true
+  }
+}

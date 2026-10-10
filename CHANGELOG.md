@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-10
+
+### Added
+
+- Nomad's scheduler has memory oversubscription on (`nomad_scheduler_config`,
+  binpack and system-only preemption as before): a task reserves its usual
+  memory and may grow to `memory_max`, so reservations follow real use.
+
+### Changed
+
+- Traefik reserves 64 MB and may grow to 256 MB (it used ~35 MB).
+
 ## [0.11.0] - 2026-10-10
 
 ### Added

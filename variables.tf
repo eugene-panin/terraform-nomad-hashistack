@@ -59,3 +59,34 @@ variable "traefik_dashboard" {
   type        = bool
   default     = false
 }
+
+variable "sso" {
+  description = <<-EOT
+    Single sign-on: people sign in to Vault with Google, and Vault is the OIDC provider
+    Nomad (and the apps that ask) sign them in through. google_client_id is the Google
+    OAuth client (Web application) with the redirect URIs
+    https://vault.<infra_domain>/ui/vault/auth/oidc/oidc/callback and
+    http://localhost:8250/oidc/callback; admins the only addresses let in, each with
+    everything in Vault and management in Nomad. Null turns it off.
+  EOT
+  type = object({
+    google_client_id = string
+    admins           = list(string)
+    session_hours    = optional(number, 8)
+  })
+  default = null
+}
+
+variable "sso_google_client_secret" {
+  description = "Secret of the Google OAuth client of sso. Written to Vault as a write-only value, never to the state."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+  default     = ""
+}
+
+variable "sso_google_client_secret_version" {
+  description = "Raise to write a changed sso_google_client_secret to Vault."
+  type        = number
+  default     = 1
+}

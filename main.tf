@@ -55,3 +55,15 @@ resource "nomad_scheduler_config" "this" {
     system_scheduler_enabled   = true
   }
 }
+
+module "sso" {
+  source = "./modules/sso"
+  count  = var.sso == null ? 0 : 1
+
+  infra_domain                 = var.infra_domain
+  google_client_id             = var.sso.google_client_id
+  google_client_secret         = var.sso_google_client_secret
+  google_client_secret_version = var.sso_google_client_secret_version
+  admins                       = var.sso.admins
+  session_hours                = var.sso.session_hours
+}

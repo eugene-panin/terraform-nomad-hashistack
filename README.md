@@ -79,6 +79,7 @@ directly, with `source = "eugene-panin/hashistack/nomad//modules/<module>"`.
 | [`workload-identity`](modules/workload-identity) | Consul and Vault auth for Nomad workload identities; each job reads only its own secrets |
 | [`traefik`](modules/traefik) | Traefik on Nomad: an internal entrypoint with a DNS-01 wildcard, public entrypoints with HTTP-01 |
 | [`dns-cloudflare`](modules/dns-cloudflare) | DNS records in Cloudflare zones, from the `dns_records` outputs of the root module and of the apps |
+| [`sso`](modules/sso) | Google sign-in to Vault for the admins, and Vault as the OIDC provider Nomad and the apps sign them in through |
 
 ## Requirements
 

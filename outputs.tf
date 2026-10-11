@@ -20,3 +20,8 @@ output "vault_kv_path" {
   description = "Path of the Vault KV version 2 engine apps keep their secrets in; a job reads <path>/<namespace>/<job>/*. Pass it to the vault_kv_path input of an app module."
   value       = module.workload_identity.vault_kv_path
 }
+
+output "sso" {
+  description = "What an app needs to sign people in through Vault's OIDC provider (see modules/sso, output oidc); null without sso."
+  value       = var.sso == null ? null : module.sso[0].oidc
+}

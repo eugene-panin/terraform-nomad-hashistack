@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-11
+
+### Added
+
+- `sso` (`modules/sso`): people sign in to Vault with Google, only the addresses in
+  `sso.admins`, each a pre-made entity in the `platform-admins` group (everything
+  in Vault). Vault is the OIDC provider of the platform: Nomad signs people in
+  through it and gives that group management; other apps make their own client
+  with the `sso` output. Other Vault identities (an app's userpass users) are in
+  no group and get no token from the provider. The Google client secret is
+  written write-only, never to the state.
+
 ## [0.12.0] - 2026-10-10
 
 ### Added

@@ -2,13 +2,21 @@ package test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,13 +25,12 @@ import (
 )
 
 const (
-	traefikDomain   = "hashistack.test"
+	internalDomain  = "service.consul"
 	traefikInternal = "127.0.0.1:18443"
 	traefikHTTP     = "127.0.0.1:18080"
 	traefikHTTPS    = "127.0.0.1:19443"
 	pebbleRoots     = "https://127.0.0.1:15000/roots/0"
 	pebbleCA        = "fixtures/stack/pebble.minica.pem"
-	dnsProviderPath = "/bin/true"
 	traefikImage    = "mirror.gcr.io/library/traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0"
 )
 
@@ -36,6 +43,22 @@ job "web" {
 
     service {
       name     = "probe"
+      port     = "http"
+      provider = "consul"
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.probe.entrypoints=internal",
+      ]
+
+      check {
+        type     = "tcp"
+        interval = "5s"
+        timeout  = "2s"
+      }
+    }
+
+    service {
+      name     = "stray"
       port     = "http"
       provider = "consul"
       tags     = ["traefik.enable=true"]
@@ -108,36 +131,28 @@ func TestTraefik(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ca := newInternalCA(t)
 
 	options := &terraform.Options{
 		TerraformDir:    "../examples/traefik",
 		TerraformBinary: binary(),
 		NoColor:         true,
+		VarFiles:        []string{ca.varFile(t)},
 		Vars: map[string]any{
-			"nomad_jwks_url":        nomadJWKSInside,
-			"image":                 traefikImage,
-			"vault_kv_path":         "kv",
-			"domain":                traefikDomain,
-			"acme_email":            "admin@" + traefikDomain,
-			"acme_ca_server":        "https://pebble:14000/dir",
-			"acme_ca_certificate":   string(acmeCA),
-			"dns_provider":          "exec",
-			"dns_provider_env":      map[string]string{"EXEC_PATH": dnsProviderPath},
-			"dns_propagation_check": false,
-			"internal":              map[string]any{"port": 443},
-			"public":                map[string]any{"enabled": true, "http_port": 80, "https_port": 9443},
-			"consul":                map[string]any{"address": "consul:8500", "scheme": "http"},
+			"nomad_jwks_url":      nomadJWKSInside,
+			"image":               traefikImage,
+			"vault_kv_path":       "kv",
+			"acme_email":          "admin@example.test",
+			"acme_ca_server":      "https://pebble:14000/dir",
+			"acme_ca_certificate": string(acmeCA),
+			"internal":            map[string]any{"port": 443},
+			"public":              map[string]any{"http_port": 80, "https_port": 9443},
+			"consul":              map[string]any{"address": "consul:8500", "scheme": "http"},
 			"routes": map[string]any{
-				"nomad": map[string]string{"host": "nomad." + traefikDomain, "url": "http://127.0.0.1:4646"},
+				"nomad": map[string]string{"host": "nomad." + internalDomain, "url": "http://127.0.0.1:4646"},
 			},
 		},
-		EnvVars: map[string]string{
-			"CONSUL_HTTP_ADDR":  consulAddr,
-			"CONSUL_HTTP_TOKEN": consulToken,
-			"VAULT_ADDR":        vaultAddr,
-			"VAULT_TOKEN":       vaultToken,
-			"NOMAD_ADDR":        nomadAddr,
-		},
+		EnvVars: stackEnv(),
 	}
 	t.Cleanup(func() {
 		if !keepStack() {
@@ -150,31 +165,27 @@ func TestTraefik(t *testing.T) {
 		t.Fatalf("a second plan wants changes, exit code %d", code)
 	}
 
-	if state := terraform.ShowContext(t, t.Context(), options); strings.Contains(state, dnsProviderPath) {
-		t.Fatal("the DNS provider credentials reached the state")
-	}
-	secret := string(mustCall(t, http.MethodGet, vaultAddr+"/v1/kv/data/default/traefik/acme", vaultHeaders(), nil))
-	if !strings.Contains(secret, dnsProviderPath) {
-		t.Fatalf("the DNS provider credentials are not in Vault: %s", secret)
+	if job := string(mustCall(t, http.MethodGet, nomadAddr+"/v1/job/traefik", nil, nil)); strings.Contains(job, "PRIVATE KEY") {
+		t.Fatal("the key of the internal certificate is in the job")
 	}
 
 	runJob(t, webJob)
 	roots := pebbleRootPool(t)
 
-	internal := clientVia(traefikInternal, roots)
+	internal := clientVia(traefikInternal, ca.pool)
 	public := clientVia(traefikHTTPS, roots)
 
-	var wildcard *x509.Certificate
-	waitFor(t, 5*time.Minute, "the internal entrypoint serves the probe with a wildcard certificate", func() bool {
-		status, body, cert := get(t, internal, "https://probe."+traefikDomain+"/")
-		wildcard = cert
+	var served *x509.Certificate
+	waitFor(t, 5*time.Minute, "the internal entrypoint serves the probe with the certificate of the project CA", func() bool {
+		status, body, cert := get(t, internal, "https://probe."+internalDomain+"/")
+		served = cert
 		return status == http.StatusOK && body == "internal"
 	})
-	if !containsName(wildcard, "*."+traefikDomain) || !containsName(wildcard, traefikDomain) {
-		t.Fatalf("the internal certificate is not the wildcard: %v", wildcard.DNSNames)
+	if !containsName(served, "*."+internalDomain) {
+		t.Fatalf("the internal certificate is not the wildcard: %v", served.DNSNames)
 	}
 
-	if status, _, _ := get(t, internal, "https://nomad."+traefikDomain+"/v1/agent/health"); status != http.StatusOK {
+	if status, _, _ := get(t, internal, "https://nomad."+internalDomain+"/v1/agent/health"); status != http.StatusOK {
 		t.Fatalf("the static route to Nomad returned %d", status)
 	}
 
@@ -184,14 +195,24 @@ func TestTraefik(t *testing.T) {
 	})
 
 	insecurePublic := clientVia(traefikHTTPS, nil)
-	if status, _, _ := get(t, insecurePublic, "https://probe."+traefikDomain+"/"); status != http.StatusNotFound {
-		t.Fatalf("an internal service answered on the public entrypoint with %d", status)
+	for _, url := range []string{
+		"https://probe." + internalDomain + "/",
+		"https://nomad." + internalDomain + "/v1/agent/health",
+		"https://stray." + internalDomain + "/",
+		"https://stray/",
+	} {
+		if status, _, _ := get(t, insecurePublic, url); status != http.StatusNotFound {
+			t.Fatalf("%s answered on the public entrypoint with %d", url, status)
+		}
 	}
-	if status, _, _ := get(t, insecurePublic, "https://nomad."+traefikDomain+"/v1/agent/health"); status != http.StatusNotFound {
-		t.Fatalf("a static route answered on the public entrypoint with %d", status)
-	}
-	if status, _, _ := get(t, internal, "https://site.example.test/"); status != http.StatusNotFound {
-		t.Fatalf("a public service answered on the internal entrypoint with %d", status)
+	insecureInternal := clientVia(traefikInternal, nil)
+	for _, url := range []string{
+		"https://site.example.test/",
+		"https://stray." + internalDomain + "/",
+	} {
+		if status, _, _ := get(t, insecureInternal, url); status != http.StatusNotFound {
+			t.Fatalf("%s answered on the internal entrypoint with %d", url, status)
+		}
 	}
 
 	plain := clientVia(traefikHTTP, nil)
@@ -208,21 +229,116 @@ func TestTraefik(t *testing.T) {
 		t.Fatalf("plain HTTP was not redirected to HTTPS: %d %q", response.StatusCode, location)
 	}
 
-	traefik, ok := runningAllocation(t, "traefik")
+	var issued *x509.Certificate
+	_, _, issued = get(t, public, "https://site.example.test/")
+	traefik, ok := runningAllocation(t, "traefik-public")
 	if !ok {
-		t.Fatal("traefik is not running")
+		t.Fatal("traefik-public is not running")
 	}
 	mustCall(t, http.MethodPost, fmt.Sprintf("%s/v1/allocation/%s/stop", nomadAddr, traefik.ID), nil, nil)
-	waitFor(t, 3*time.Minute, "a new traefik allocation serves the probe", func() bool {
-		replacement, ok := runningAllocation(t, "traefik")
+	waitFor(t, 3*time.Minute, "a new traefik-public allocation serves the site", func() bool {
+		replacement, ok := runningAllocation(t, "traefik-public")
 		if !ok || replacement.ID == traefik.ID {
 			return false
 		}
-		status, _, _ := get(t, internal, "https://probe."+traefikDomain+"/")
+		status, _, _ := get(t, public, "https://site.example.test/")
 		return status == http.StatusOK
 	})
-	if _, _, cert := get(t, internal, "https://probe."+traefikDomain+"/"); cert == nil || cert.SerialNumber.Cmp(wildcard.SerialNumber) != 0 {
+	if _, _, cert := get(t, public, "https://site.example.test/"); cert == nil || issued == nil || cert.SerialNumber.Cmp(issued.SerialNumber) != 0 {
 		t.Fatal("a new allocation requested a new certificate instead of reading the ACME storage")
+	}
+}
+
+func stackEnv() map[string]string {
+	return map[string]string{
+		"CONSUL_HTTP_ADDR":  consulAddr,
+		"CONSUL_HTTP_TOKEN": consulToken,
+		"VAULT_ADDR":        vaultAddr,
+		"VAULT_TOKEN":       vaultToken,
+		"NOMAD_ADDR":        nomadAddr,
+	}
+}
+
+type internalCA struct {
+	pool    *x509.CertPool
+	caPEM   string
+	caKey   string
+	certPEM string
+	keyPEM  string
+}
+
+func (ca internalCA) varFile(t *testing.T) string {
+	t.Helper()
+	encoded, err := json.Marshal(map[string]any{
+		"internal_tls": map[string]string{"cert_pem": ca.certPEM, "key_pem": ca.keyPEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "internal-tls.tfvars.json")
+	if err := os.WriteFile(path, encoded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func newInternalCA(t *testing.T) internalCA {
+	t.Helper()
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "hashistack test project CA"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		PermittedDNSDomains:   []string{"consul", "nomad"},
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leafDER, err := x509.CreateCertificate(rand.Reader, &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "*." + internalDomain},
+		DNSNames:     []string{"*." + internalDomain, internalDomain},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}, caCert, &key.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caKeyDER, err := x509.MarshalPKCS8PrivateKey(caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(caCert)
+	caPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}))
+	return internalCA{
+		pool:    pool,
+		caPEM:   caPEM,
+		caKey:   string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: caKeyDER})),
+		certPEM: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafDER})) + caPEM,
+		keyPEM:  string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})),
 	}
 }
 

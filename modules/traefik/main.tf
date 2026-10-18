@@ -1,16 +1,29 @@
 locals {
-  secret_name = "${var.namespace}/${var.job_name}/acme"
-  volume_name = "${var.job_name}-certificates"
+  internal = var.role == "internal"
+  public   = var.role == "public"
+
+  job_name      = coalesce(var.job_name, local.internal ? "traefik" : "traefik-public")
+  volume_name   = "${local.job_name}-certificates"
+  variable_path = "nomad/jobs/${local.job_name}"
+
+  entrypoints = local.internal ? ["internal"] : ["public-http", "public-https"]
+  tag_regex   = "(?i)^traefik\\.(http|tcp|udp)\\.routers\\.[^=]+\\.entrypoints=(.*,)?\\s*${local.internal ? "internal" : "public-https?"}\\s*(,.*)?$"
 }
 
-resource "vault_kv_secret_v2" "acme" {
-  mount                = var.vault_kv_path
-  name                 = local.secret_name
-  data_json_wo         = jsonencode(var.dns_provider_env)
-  data_json_wo_version = var.dns_provider_env_version
+resource "nomad_variable" "tls" {
+  count = local.internal ? 1 : 0
+
+  path      = local.variable_path
+  namespace = var.namespace
+  items = {
+    tls_cert = var.tls.cert_pem
+    tls_key  = var.tls.key_pem
+  }
 }
 
-resource "nomad_dynamic_host_volume" "certificates" {
+resource "nomad_dynamic_host_volume" "acme_storage" {
+  count = local.public ? 1 : 0
+
   name      = local.volume_name
   namespace = var.namespace
   plugin_id = "mkdir"
@@ -29,30 +42,37 @@ resource "nomad_dynamic_host_volume" "certificates" {
 
 resource "nomad_job" "traefik" {
   jobspec = templatefile("${path.module}/templates/traefik.nomad.hcl.tftpl", {
-    job_name            = var.job_name
+    role                = var.role
+    job_name            = local.job_name
     namespace           = var.namespace
     datacenters         = var.datacenters
-    volume_name         = nomad_dynamic_host_volume.certificates.name
     image               = var.image
+    consul              = var.consul
+    constraint          = "TagRegex(`${local.tag_regex}`)"
+    internal            = var.internal
     domain              = var.domain
+    variable_path       = local.variable_path
+    routes              = var.routes
+    backend_ca_pem      = var.backend_ca_pem
+    dashboard_host      = var.dashboard_host
+    public              = var.public
+    volume_name         = local.public ? nomad_dynamic_host_volume.acme_storage[0].name : null
     acme_email          = var.acme_email
     acme_ca_server      = var.acme_ca_server
     acme_ca_certificate = var.acme_ca_certificate
-    dns_provider        = var.dns_provider
-    dns_disable_checks  = !var.dns_propagation_check
-    internal            = var.internal
-    internal_tls        = var.internal_tls
-    public              = var.public
-    consul              = var.consul
-    routes              = var.routes
-    dashboard_host      = var.dashboard_host
-    backend_ca_pem      = var.backend_ca_pem
-    secret_path         = "${var.vault_kv_path}/data/${local.secret_name}"
   })
 
   purge_on_destroy = true
 
-  depends_on = [vault_kv_secret_v2.acme]
+  depends_on = [nomad_variable.tls]
+}
+
+removed {
+  from = nomad_dynamic_host_volume.certificates
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 removed {

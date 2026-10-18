@@ -5,12 +5,12 @@ job "${job_name}" {
 
   group "traefik" {
     network {
+%{ if role == "internal" ~}
       port "internal" {
         static       = ${internal.port}
         host_network = "${internal.host_network}"
       }
-%{ if public.enabled ~}
-
+%{ else ~}
       port "public_http" {
         static       = ${public.http_port}
         host_network = "${public.host_network}"
@@ -23,6 +23,7 @@ job "${job_name}" {
 %{ endif ~}
     }
 
+%{ if role == "public" ~}
     volume "acme" {
       type            = "host"
       source          = "${volume_name}"
@@ -30,9 +31,10 @@ job "${job_name}" {
       attachment_mode = "file-system"
     }
 
+%{ endif ~}
     service {
       name     = "${job_name}"
-      port     = "internal"
+      port     = "${role == "internal" ? "internal" : "public_https"}"
       provider = "consul"
 
       check {
@@ -55,16 +57,16 @@ job "${job_name}" {
         security_opt    = ["no-new-privileges"]
       }
 
+%{ if role == "public" ~}
       volume_mount {
         volume      = "acme"
         destination = "/acme"
       }
 
+%{ endif ~}
       consul {}
 
-      vault {}
-
-%{ if acme_ca_certificate != null ~}
+%{ if role == "public" && acme_ca_certificate != null ~}
       env {
         LEGO_CA_CERTIFICATES = "/local/acme-ca.pem"
       }
@@ -90,6 +92,7 @@ ${consul.ca_pem}
       }
 
 %{ endif ~}
+%{ if role == "internal" ~}
 %{ if backend_ca_pem != null ~}
       template {
         destination     = "local/backend-ca.pem"
@@ -102,14 +105,23 @@ ${backend_ca_pem}
 
 %{ endif ~}
       template {
-        destination = "secrets/acme.env"
-        env         = true
+        destination = "local/internal-cert.pem"
+        change_mode = "restart"
         data        = <<-EOT
-          {{ with secret "${secret_path}" }}{{ range $k, $v := .Data.data }}{{ $k }}={{ $v }}
-          {{ end }}{{ end }}
+          {{ with nomadVar "${variable_path}" }}{{ .tls_cert }}{{ end }}
         EOT
       }
 
+      template {
+        destination = "local/internal-key.pem"
+        change_mode = "restart"
+        perms       = "600"
+        data        = <<-EOT
+          {{ with nomadVar "${variable_path}" }}{{ .tls_key }}{{ end }}
+        EOT
+      }
+
+%{ endif ~}
       template {
         destination     = "local/traefik.yml"
         change_mode     = "restart"
@@ -118,26 +130,18 @@ ${backend_ca_pem}
         data            = <<-EOT
           log:
             level: INFO
-%{ if dashboard_host != null ~}
+%{ if role == "internal" && dashboard_host != null ~}
           api:
             dashboard: true
 %{ endif ~}
           entryPoints:
+%{ if role == "internal" ~}
             internal:
               address: "[[ env "NOMAD_IP_internal" ]]:[[ env "NOMAD_PORT_internal" ]]"
               asDefault: true
               http:
-%{ if internal_tls.mode == "acme-dns" ~}
-                tls:
-                  certResolver: dns
-                  domains:
-                    - main: "${domain}"
-                      sans:
-                        - "*.${domain}"
-%{ else ~}
                 tls: {}
-%{ endif ~}
-%{ if public.enabled ~}
+%{ else ~}
             public-http:
               address: "[[ env "NOMAD_IP_public_http" ]]:[[ env "NOMAD_PORT_public_http" ]]"
               http:
@@ -155,7 +159,10 @@ ${backend_ca_pem}
             consulCatalog:
               exposedByDefault: false
               prefix: traefik
+              constraints: '${constraint}'
+%{ if role == "internal" ~}
               defaultRule: 'Host(`{{ normalize .Name }}.${domain}`)'
+%{ endif ~}
               endpoint:
                 address: "${consul.address}"
                 scheme: "${consul.scheme}"
@@ -166,20 +173,8 @@ ${backend_ca_pem}
             file:
               filename: /local/dynamic.yml
               watch: true
-%{ if internal_tls.mode == "acme-dns" || public.enabled ~}
+%{ if role == "public" ~}
           certificatesResolvers:
-%{ if internal_tls.mode == "acme-dns" ~}
-            dns:
-              acme:
-                email: "${acme_email}"
-                caServer: "${acme_ca_server}"
-                storage: /acme/dns.json
-                dnsChallenge:
-                  provider: "${dns_provider}"
-                  propagation:
-                    disableChecks: ${dns_disable_checks}
-%{ endif ~}
-%{ if public.enabled ~}
             http:
               acme:
                 email: "${acme_email}"
@@ -188,36 +183,16 @@ ${backend_ca_pem}
                 httpChallenge:
                   entryPoint: public-http
 %{ endif ~}
-%{ endif ~}
         EOT
       }
 
-%{ if internal_tls.mode == "ca" ~}
-      template {
-        destination     = "local/internal-cert.pem"
-        left_delimiter  = "[["
-        right_delimiter = "]]"
-        data            = <<-EOT
-${internal_tls.cert_pem}
-        EOT
-      }
-
-      template {
-        destination     = "local/internal-key.pem"
-        left_delimiter  = "[["
-        right_delimiter = "]]"
-        data            = <<-EOT
-${internal_tls.key_pem}
-        EOT
-      }
-
-%{ endif ~}
       template {
         destination     = "local/dynamic.yml"
         change_mode     = "noop"
         left_delimiter  = "[["
         right_delimiter = "]]"
         data            = <<-EOT
+%{ if role == "internal" ~}
           http:
             routers:
 %{ for name, route in routes ~}
@@ -247,18 +222,18 @@ ${internal_tls.key_pem}
 %{ endif ~}
                 forwardingTimeouts:
                   dialTimeout: 10s
-          tcp:
-            serversTransports:
-              proxy-protocol:
-                proxyProtocol:
-                  version: 2
-%{ if internal_tls.mode == "ca" ~}
           tls:
             stores:
               default:
                 defaultCertificate:
                   certFile: /local/internal-cert.pem
                   keyFile: /local/internal-key.pem
+%{ else ~}
+          tcp:
+            serversTransports:
+              proxy-protocol:
+                proxyProtocol:
+                  version: 2
 %{ endif ~}
         EOT
       }

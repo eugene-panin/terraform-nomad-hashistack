@@ -1,17 +1,17 @@
 # dns-cloudflare
 
 Publishes DNS records in Cloudflare, for the domains whose zones are there.
-The records come in sets, one per module: the `dns_records` output of the
-root module (the internal wildcard) and those of the apps, such as the mail
-records of `eugene-panin/stalwart/nomad`. Records of one domain from
+The records come in sets, one per module: the `dns_records` outputs of the
+apps, such as the mail records of `eugene-panin/stalwart/nomad`, and of domain
+modules. The root module publishes none since 1.0.0. Records of one domain from
 different sets are published together.
 
 ```hcl
 module "dns" {
   source  = "eugene-panin/hashistack/nomad//modules/dns-cloudflare"
-  version = "~> 0.6"
+  version = "~> 1.0"
 
-  records = [module.stack.dns_records, module.mail.dns_records]
+  records = [module.mail.dns_records]
   zones   = ["example.com"]
 }
 ```

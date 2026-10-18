@@ -1,147 +1,31 @@
-variable "domain" {
-  description = "Domain Traefik serves on the internal entrypoint. It gets one wildcard certificate, *.<domain>, through DNS-01."
-  type        = string
-}
-
-variable "acme_email" {
-  description = "Contact address for the ACME account."
-  type        = string
-}
-
-variable "acme_ca_server" {
-  description = "ACME directory URL."
-  type        = string
-  default     = "https://acme-v02.api.letsencrypt.org/directory"
-}
-
-variable "acme_ca_certificate" {
-  description = "PEM CA the ACME server's own TLS certificate is signed by, for a private ACME server. Null trusts the system store."
-  type        = string
-  default     = null
-}
-
-variable "dns_provider" {
-  description = "Provider for the DNS-01 challenge, by its lego name, such as cloudflare."
-  type        = string
-  default     = "cloudflare"
-}
-
-variable "dns_provider_env" {
-  description = "Environment the DNS provider needs, such as { CF_DNS_API_TOKEN = \"...\" }. Written to Vault as a write-only value, so it never reaches the state, and read by the job with its own identity."
-  type        = map(string)
-  sensitive   = true
-  ephemeral   = true
-}
-
-variable "dns_provider_env_version" {
-  description = "Version of dns_provider_env. Raise it to write a changed value to Vault; a write-only value is not compared otherwise."
-  type        = number
-  default     = 1
-}
-
-variable "dns_propagation_check" {
-  description = "Wait until the DNS-01 record is visible before asking for validation."
-  type        = bool
-  default     = true
-}
-
-variable "internal" {
-  description = "Internal entrypoint: the Nomad host network it binds to and its port. Routers use it unless they name another."
-  type = object({
-    host_network = optional(string, "default")
-    port         = optional(number, 443)
-  })
-  default = {}
-}
-
-variable "internal_tls" {
+variable "role" {
   description = <<-EOT
-    How the internal entrypoint gets its certificate.
-    mode "acme-dns" (the default): a wildcard *.<domain> from Let's Encrypt
-    through the DNS-01 challenge (needs dns_provider and its token).
-    mode "ca": a wildcard *.<domain> signed by the project's own CA, given as
-    cert_pem and key_pem — no ACME and no DNS token, for when there is no API
-    access to the zone. Browsers trust it through `damstack trust`.
+    What this Traefik serves. "internal": the entrypoint internal on a private host
+    network, with a certificate signed by the project CA (tls), the services of the
+    Consul catalog at <service>.<domain> and the routes; no ACME. "public": the
+    entrypoints public-http and public-https on the public host network, with
+    certificates from Let's Encrypt through HTTP-01 (resolver http). Each role is its
+    own job, Consul service and names, so one host can run both.
   EOT
-  type = object({
-    mode     = optional(string, "acme-dns")
-    cert_pem = optional(string)
-    key_pem  = optional(string)
-  })
-  default = {}
-  validation {
-    condition     = contains(["acme-dns", "ca"], var.internal_tls.mode)
-    error_message = "internal_tls.mode must be acme-dns or ca."
-  }
-  validation {
-    condition     = var.internal_tls.mode != "ca" || (var.internal_tls.cert_pem != null && var.internal_tls.key_pem != null)
-    error_message = "internal_tls.mode ca needs cert_pem and key_pem (a wildcard signed by the project CA)."
-  }
-}
-
-variable "public" {
-  description = "Public entrypoints, HTTP redirecting to HTTPS, with certificates through HTTP-01. Only routers that name public-https use them."
-  type = object({
-    enabled      = optional(bool, false)
-    host_network = optional(string, "public")
-    http_port    = optional(number, 80)
-    https_port   = optional(number, 443)
-  })
-  default = {}
-}
-
-variable "consul" {
-  description = "Consul agent Traefik reads the catalog from, as the task's own identity."
-  type = object({
-    address = optional(string, "127.0.0.1:8501")
-    scheme  = optional(string, "https")
-    ca_pem  = optional(string)
-  })
-  default = {}
+  type        = string
+  nullable    = false
 
   validation {
-    condition     = contains(["http", "https"], var.consul.scheme)
-    error_message = "consul.scheme must be http or https."
+    condition     = contains(["internal", "public"], var.role)
+    error_message = "role must be internal or public."
   }
-}
-
-variable "dashboard_host" {
-  description = "Serve Traefik's dashboard (and its read-only API) on the internal entrypoint at this host name, so only through the private network. Null leaves the dashboard off. It has no login of its own: whoever reaches the internal entrypoint can see the routes."
-  type        = string
-  default     = null
-}
-
-variable "routes" {
-  description = "Routes to backends outside Nomad, such as the Nomad, Consul and Vault UIs, on the internal entrypoint, keyed by name."
-  type = map(object({
-    host = string
-    url  = string
-  }))
-  default = {}
-}
-
-variable "backend_ca_pem" {
-  description = "PEM CA that signs the certificates of the backends in routes. Null trusts the system store."
-  type        = string
-  default     = null
-}
-
-variable "vault_kv_path" {
-  description = "Path of the KV version 2 engine the workload-identity module mounts."
-  type        = string
-  default     = "secret"
-}
-
-variable "namespace" {
-  description = "Nomad namespace of the job; also the first segment of its secret path in Vault."
-  type        = string
-  default     = "default"
 }
 
 variable "job_name" {
-  description = "Name of the Nomad job; also the second segment of its secret path in Vault."
+  description = "Name of the Nomad job and of its Consul service. Null takes traefik for the internal role and traefik-public for the public one."
   type        = string
-  default     = "traefik"
+  default     = null
+}
+
+variable "namespace" {
+  description = "Nomad namespace of the job."
+  type        = string
+  default     = "default"
 }
 
 variable "datacenters" {
@@ -160,4 +44,108 @@ variable "image" {
     condition     = can(regex("@sha256:[0-9a-f]{64}$", var.image))
     error_message = "image must be pinned by its digest: name:tag@sha256:<64 hex digits>."
   }
+}
+
+variable "consul" {
+  description = "Consul agent Traefik reads the catalog from, as the task's own identity."
+  type = object({
+    address = optional(string, "127.0.0.1:8501")
+    scheme  = optional(string, "https")
+    ca_pem  = optional(string)
+  })
+  default = {}
+
+  validation {
+    condition     = contains(["http", "https"], var.consul.scheme)
+    error_message = "consul.scheme must be http or https."
+  }
+}
+
+variable "internal" {
+  description = "Internal role: the Nomad host network the entrypoint internal binds to, and its port."
+  type = object({
+    host_network = optional(string, "default")
+    port         = optional(number, 443)
+  })
+  default  = {}
+  nullable = false
+}
+
+variable "domain" {
+  description = "Internal role: services of the Consul catalog get Host(<service>.<domain>) unless they name a rule."
+  type        = string
+  default     = "service.consul"
+  nullable    = false
+}
+
+variable "tls" {
+  description = "Internal role: the certificate of the entrypoint internal, for *.<domain> and <domain>, signed by the project CA (cert_pem may carry the chain). Kept in a Nomad variable the job reads, not in the job."
+  type = object({
+    cert_pem = string
+    key_pem  = string
+  })
+  default   = null
+  sensitive = true
+
+  validation {
+    condition     = var.role != "internal" || var.tls != null
+    error_message = "The internal role needs tls: a certificate and key signed by the project CA."
+  }
+}
+
+variable "routes" {
+  description = "Internal role: routes to backends outside Nomad, such as the Nomad, Consul and Vault UIs, keyed by name."
+  type = map(object({
+    host = string
+    url  = string
+  }))
+  default  = {}
+  nullable = false
+}
+
+variable "backend_ca_pem" {
+  description = "Internal role: PEM CA that signs the certificates of the backends in routes. Null trusts the system store."
+  type        = string
+  default     = null
+}
+
+variable "dashboard_host" {
+  description = "Internal role: serve Traefik's dashboard (and its read-only API) at this host name. Null leaves it off. It has no login of its own: whoever reaches the entrypoint internal can see the routes."
+  type        = string
+  default     = null
+}
+
+variable "public" {
+  description = "Public role: the Nomad host network of the entrypoints public-http (redirects to HTTPS) and public-https, and their ports."
+  type = object({
+    host_network = optional(string, "public")
+    http_port    = optional(number, 80)
+    https_port   = optional(number, 443)
+  })
+  default  = {}
+  nullable = false
+}
+
+variable "acme_email" {
+  description = "Public role: contact address for the ACME account."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.role != "public" || var.acme_email != null
+    error_message = "The public role needs acme_email."
+  }
+}
+
+variable "acme_ca_server" {
+  description = "Public role: ACME directory URL."
+  type        = string
+  default     = "https://acme-v02.api.letsencrypt.org/directory"
+  nullable    = false
+}
+
+variable "acme_ca_certificate" {
+  description = "Public role: PEM CA the ACME server's own TLS certificate is signed by, for a private ACME server. Null trusts the system store."
+  type        = string
+  default     = null
 }

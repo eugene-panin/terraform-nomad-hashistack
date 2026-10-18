@@ -5,7 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-10-18
 
 The platform has no domain. Its admin pages and internal apps are reached
 through the private network by their Consul names, `<service>.service.consul`,

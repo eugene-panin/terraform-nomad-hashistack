@@ -251,6 +251,10 @@ func TestTraefik(t *testing.T) {
 		return status == http.StatusOK
 	})
 	if _, _, cert := get(t, public, "https://site.example.test/"); cert == nil || issued == nil || cert.SerialNumber.Cmp(issued.SerialNumber) != 0 {
+		if replacement, ok := runningAllocation(t, "traefik-public"); ok {
+			_, logs := call(t, http.MethodGet, fmt.Sprintf("%s/v1/client/fs/logs/%s?task=traefik&type=stdout&plain=true&origin=start", nomadAddr, replacement.ID), nil, nil)
+			t.Logf("the replacement's log:\n%s", logs)
+		}
 		t.Fatal("a new allocation requested a new certificate instead of reading the ACME storage")
 	}
 }

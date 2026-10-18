@@ -1,19 +1,13 @@
 locals {
+  domain = "service.consul"
+
   ui = {
-    consul = { host = "consul.${var.infra_domain}", url = "https://127.0.0.1:8501" }
-    nomad  = { host = "nomad.${var.infra_domain}", url = "https://${var.address}:4646" }
-    vault  = { host = "vault.${var.infra_domain}", url = "https://${var.address}:8200" }
+    consul = { host = "consul.${local.domain}", url = "https://127.0.0.1:8501" }
+    nomad  = { host = "nomad.${local.domain}", url = "https://${var.address}:4646" }
+    vault  = { host = "vault.${local.domain}", url = "https://${var.address}:8200" }
   }
 
-  infra_records = {
-    (var.infra_domain) = [{
-      type     = "A"
-      name     = "*.${var.infra_domain}"
-      content  = var.address
-      priority = null
-      comment  = "Internal names, reachable through WireGuard only"
-    }]
-  }
+  dashboard_host = "traefik.${local.domain}"
 }
 
 module "workload_identity" {
@@ -23,22 +17,45 @@ module "workload_identity" {
   nomad_jwks_ca_pem = var.ca_pem
 }
 
+resource "tls_private_key" "internal" {
+  algorithm   = "ECDSA"
+  ecdsa_curve = "P256"
+}
+
+resource "tls_cert_request" "internal" {
+  private_key_pem = tls_private_key.internal.private_key_pem
+
+  subject {
+    common_name = "*.${local.domain}"
+  }
+
+  dns_names = ["*.${local.domain}", local.domain]
+}
+
+resource "tls_locally_signed_cert" "internal" {
+  cert_request_pem      = tls_cert_request.internal.cert_request_pem
+  ca_private_key_pem    = var.ca_key_pem
+  ca_cert_pem           = var.ca_pem
+  validity_period_hours = 19800
+  early_renewal_hours   = 720
+
+  allowed_uses = ["digital_signature", "key_encipherment", "server_auth"]
+}
+
 module "traefik" {
   source = "./modules/traefik"
 
-  domain                   = var.infra_domain
-  acme_email               = var.acme_email
-  dns_provider             = var.dns_provider
-  dns_provider_env         = var.dns_provider_env
-  dns_provider_env_version = var.dns_provider_env_version
-  internal_tls             = var.internal_tls
-  vault_kv_path            = module.workload_identity.vault_kv_path
+  role   = "internal"
+  domain = local.domain
+  tls = {
+    cert_pem = "${tls_locally_signed_cert.internal.cert_pem}${var.ca_pem}"
+    key_pem  = tls_private_key.internal.private_key_pem
+  }
 
-  public         = { enabled = var.public }
   consul         = { ca_pem = var.ca_pem }
   routes         = local.ui
-  dashboard_host = var.traefik_dashboard ? "traefik.${var.infra_domain}" : null
   backend_ca_pem = var.ca_pem
+  dashboard_host = var.traefik_dashboard ? local.dashboard_host : null
 }
 
 # The scheduler as it was set up (binpack, preemption for system jobs only), with
@@ -56,14 +73,10 @@ resource "nomad_scheduler_config" "this" {
   }
 }
 
-module "sso" {
-  source = "./modules/sso"
-  count  = var.sso == null ? 0 : 1
+removed {
+  from = module.sso
 
-  infra_domain                 = var.infra_domain
-  google_client_id             = var.sso.google_client_id
-  google_client_secret         = var.sso_google_client_secret
-  google_client_secret_version = var.sso_google_client_secret_version
-  admins                       = var.sso.admins
-  session_hours                = var.sso.session_hours
+  lifecycle {
+    destroy = false
+  }
 }

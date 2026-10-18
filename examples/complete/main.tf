@@ -4,34 +4,33 @@ provider "nomad" {}
 
 provider "vault" {}
 
-provider "cloudflare" {}
+provider "tls" {}
 
 variable "ca_pem" {
   description = "PEM CA of the Consul, Vault and Nomad certificates."
   type        = string
 }
 
-variable "cloudflare_api_token" {
-  description = "Cloudflare token Traefik answers the DNS-01 challenge with."
+variable "ca_key_pem" {
+  description = "PEM key of the CA; it signs the certificate of the internal entrypoint."
   type        = string
   sensitive   = true
-  ephemeral   = true
 }
 
 module "stack" {
   source = "../.."
 
-  infra_domain     = "infra.example.com"
-  address          = "10.77.0.1"
-  ca_pem           = var.ca_pem
-  acme_email       = "admin@example.com"
-  dns_provider_env = { CF_DNS_API_TOKEN = var.cloudflare_api_token }
+  address    = "10.77.0.1"
+  ca_pem     = var.ca_pem
+  ca_key_pem = var.ca_key_pem
 }
 
-module "dns" {
-  source = "../../modules/dns-cloudflare"
+module "traefik_public" {
+  source = "../../modules/traefik"
 
-  records = [module.stack.dns_records]
+  role       = "public"
+  acme_email = "admin@example.com"
+  consul     = { ca_pem = var.ca_pem }
 }
 
 output "ui_urls" {

@@ -5,6 +5,101 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - Unreleased
+
+The platform has no domain. Its admin pages and internal apps are reached
+through the private network by their Consul names, `<service>.service.consul`,
+with a certificate signed by the project CA. The public entry for apps, DNS
+records and single sign-on leave the root module.
+
+### Changed
+
+- **Breaking.** `traefik` takes `role`, `internal` or `public`, and runs one
+  Traefik of that role; call it twice for both. Each role is its own job,
+  Consul service and names: `traefik` and `traefik-public` by default
+  (`job_name` overrides).
+  - `internal`: the entrypoint `internal` on the host network `default`, port
+    443, with the certificate in `tls` (`cert_pem`, `key_pem`, for
+    `*.service.consul` and `service.consul`); services default to
+    `Host(<service>.<domain>)`, `domain` being `service.consul`; `routes`,
+    `backend_ca_pem` and `dashboard_host` as before. No ACME, no volume. The
+    certificate and key are kept in the Nomad variable `nomad/jobs/<job_name>`,
+    which the job reads, not in the job.
+  - `public`: the entrypoints `public-http` (redirects to HTTPS) and
+    `public-https` on the host network `public`, ports 80 and 443, the
+    certificate resolver `http` (HTTP-01, needs `acme_email`) with its
+    storage on the volume `<job_name>-certificates`, and the TCP servers
+    transport `proxy-protocol@file`. No routes, no dashboard.
+- **Breaking.** Each role reads only the services of the Consul catalog with a
+  router on its own entrypoints (a `constraints` `TagRegex`, the `tag_regex`
+  output), under the tag prefix `traefik`. A public app tags as before:
+  `traefik.http.routers.<name>.entrypoints=public-https` (or `tcp` for TLS
+  passthrough). An internal app must now tag
+  `traefik.http.routers.<name>.entrypoints=internal` next to
+  `traefik.enable=true`; `traefik.enable=true` alone is served by neither.
+  An internal router names no certificate resolver.
+- **Breaking.** The root module runs only the internal Traefik, with workload
+  identity and the scheduler configuration. It signs the certificate of the
+  internal entrypoint itself, for `*.service.consul` and `service.consul`, with
+  the project CA (`ca_pem` and the new `ca_key_pem`), valid 825 days and
+  renewed on the apply 30 days before it expires. `ui_urls` are
+  `https://consul.service.consul`, `https://nomad.service.consul`,
+  `https://vault.service.consul`, and `https://traefik.service.consul` with
+  `traefik_dashboard`.
+
+### Removed
+
+- **Breaking.** Root module inputs `infra_domain`, `acme_email`,
+  `dns_provider`, `dns_provider_env`, `dns_provider_env_version`,
+  `internal_tls`, `public`, `sso`, `sso_google_client_secret`,
+  `sso_google_client_secret_version`; outputs `dns_records` and `sso`. The
+  platform publishes no DNS records: `modules/dns-cloudflare` stays for the
+  modules of a domain. `modules/sso` stays, no longer called by the root
+  module.
+- **Breaking.** `traefik` inputs `domain` as a public name, `acme_email` for the
+  internal entrypoint, `dns_provider`, `dns_provider_env`,
+  `dns_provider_env_version`, `dns_propagation_check`, `internal_tls`,
+  `public.enabled`, `vault_kv_path`; output `secret_path`. No DNS-01: the job
+  reads nothing from Vault and the module no longer needs the `vault` provider.
+- The root module no longer requires the `random` provider.
+
+### Upgrading from 0.13
+
+Of the root module, `module.traefik` keeps its address and the job keeps its
+name, `traefik`. An apply of 1.0.0 over the state of 0.13:
+
+- updates in place `module.traefik.nomad_job.traefik`: the job keeps only the
+  entrypoint `internal` on port 443 of the host network `default`. The public
+  ports 80 and 443 close: public apps are unreachable until the public role
+  runs;
+- creates `tls_private_key.internal`, `tls_cert_request.internal`,
+  `tls_locally_signed_cert.internal` and
+  `module.traefik.nomad_variable.tls[0]` (`nomad/jobs/traefik`);
+- destroys `module.traefik.vault_kv_secret_v2.acme`, the DNS provider token.
+  It deletes the latest version, as the provider does; the metadata stays
+  until `vault kv metadata delete <kv>/default/traefik/acme`;
+- forgets `module.traefik.nomad_dynamic_host_volume.certificates` (a
+  `removed` block): the volume `traefik-certificates`, with the ACME account
+  and the certificates of 0.13 (`dns.json`, `http.json`), stays in Nomad,
+  no longer managed. Delete it once nothing needs it with
+  `nomad volume delete -type host <id>`;
+- forgets `module.sso` when `sso` was on (a `removed` block): the Google sign-in
+  method, Vault's OIDC provider and Nomad's auth method stay in Vault and
+  Nomad as they are, no longer managed;
+- leaves `module.workload_identity` and `nomad_scheduler_config.this`
+  unchanged.
+
+The public role is a separate call of `modules/traefik` with
+`role = "public"`, in its own state. Its apply creates the job
+`traefik-public`, its Consul service and the volume
+`traefik-public-certificates`; Traefik requests the public certificates again
+through HTTP-01, unless `http.json` is copied from the old volume first. The
+records of `*.<infra_domain>` are no longer published by the platform: delete
+them, or leave them to a domain module.
+
+A caller that made the internal certificate for `internal_tls.mode = "ca"`
+itself drops it: the root module makes its own, for the new names.
+
 ## [0.13.0] - 2026-10-11
 
 ### Added

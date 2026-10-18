@@ -146,6 +146,7 @@ func TestTraefik(t *testing.T) {
 			"acme_ca_server":      "https://pebble:14000/dir",
 			"acme_ca_certificate": string(acmeCA),
 			"internal":            map[string]any{"port": 443},
+			"secrets_dir":         "local",
 			"public":              map[string]any{"http_port": 80, "https_port": 9443},
 			"consul":              map[string]any{"address": "consul:8500", "scheme": "http"},
 			"routes": map[string]any{

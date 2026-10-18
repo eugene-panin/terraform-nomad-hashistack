@@ -50,7 +50,7 @@ run "internal_role" {
   }
 
   assert {
-    condition     = strcontains(nomad_job.traefik.jobspec, "{{ with nomadVar \"nomad/jobs/traefik\" }}{{ .tls_cert }}{{ end }}") && strcontains(nomad_job.traefik.jobspec, "certFile: /local/internal-cert.pem") && strcontains(nomad_job.traefik.jobspec, "keyFile: /local/internal-key.pem")
+    condition     = strcontains(nomad_job.traefik.jobspec, "{{ with nomadVar \"nomad/jobs/traefik\" }}{{ .tls_cert }}{{ end }}") && strcontains(nomad_job.traefik.jobspec, "certFile: /secrets/internal-cert.pem") && strcontains(nomad_job.traefik.jobspec, "keyFile: /secrets/internal-key.pem")
     error_message = "The default certificate must come from the Nomad variable."
   }
 

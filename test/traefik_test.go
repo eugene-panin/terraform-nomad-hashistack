@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/terratest/modules/core/v2/logger"
+	"github.com/gruntwork-io/terratest/modules/docker/v2"
 	"github.com/gruntwork-io/terratest/modules/terraform/v2"
 )
 
@@ -232,6 +234,9 @@ func TestTraefik(t *testing.T) {
 
 	var issued *x509.Certificate
 	_, _, issued = get(t, public, "https://site.example.test/")
+	waitFor(t, time.Minute, "the certificate of site.example.test is in the ACME storage", func() bool {
+		return strings.Contains(acmeStorage(t, "traefik-public-certificates"), "site.example.test")
+	})
 	traefik, ok := runningAllocation(t, "traefik-public")
 	if !ok {
 		t.Fatal("traefik-public is not running")
@@ -417,4 +422,29 @@ func containsName(cert *x509.Certificate, name string) bool {
 		}
 	}
 	return false
+}
+
+// acmeStorage is the HTTP-01 storage of Traefik in the host volume named
+// volume, read inside the Nomad container; empty when it is not there yet.
+func acmeStorage(t *testing.T, volume string) string {
+	t.Helper()
+	var volumes []struct{ ID, Name string }
+	if err := json.Unmarshal(mustCall(t, http.MethodGet, nomadAddr+"/v1/volumes?type=host", nil, nil), &volumes); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range volumes {
+		if v.Name != volume {
+			continue
+		}
+		var detail struct{ HostPath string }
+		if err := json.Unmarshal(mustCall(t, http.MethodGet, nomadAddr+"/v1/volume/host/"+v.ID, nil, nil), &detail); err != nil {
+			t.Fatal(err)
+		}
+		out, err := docker.RunDockerComposeContextE(t, t.Context(), &docker.Options{WorkingDir: "fixtures/stack", Logger: logger.Discard}, "exec", "-T", "nomad", "cat", detail.HostPath+"/http.json")
+		if err != nil {
+			return ""
+		}
+		return out
+	}
+	return ""
 }

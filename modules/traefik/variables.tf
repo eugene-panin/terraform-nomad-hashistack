@@ -78,6 +78,17 @@ variable "domain" {
   nullable    = false
 }
 
+variable "secrets_dir" {
+  description = "Internal role: the directory of the task its certificate and key are rendered into: secrets, Nomad's tmpfs, so the key is never on disk; local only where the task cannot see secrets, as with Docker in Docker."
+  type        = string
+  default     = "secrets"
+
+  validation {
+    condition     = contains(["secrets", "local"], var.secrets_dir)
+    error_message = "secrets_dir is secrets or local."
+  }
+}
+
 variable "tls" {
   description = "Internal role: the certificate of the entrypoint internal, for *.<domain> and <domain>, signed by the project CA (cert_pem may carry the chain). Kept in a Nomad variable the job reads, not in the job."
   type = object({

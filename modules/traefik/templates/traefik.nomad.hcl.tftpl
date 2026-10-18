@@ -105,7 +105,7 @@ ${backend_ca_pem}
 
 %{ endif ~}
       template {
-        destination = "local/internal-cert.pem"
+        destination = "${secrets_dir}/internal-cert.pem"
         change_mode = "restart"
         data        = <<-EOT
           {{ with nomadVar "${variable_path}" }}{{ .tls_cert }}{{ end }}
@@ -113,7 +113,7 @@ ${backend_ca_pem}
       }
 
       template {
-        destination = "local/internal-key.pem"
+        destination = "${secrets_dir}/internal-key.pem"
         change_mode = "restart"
         perms       = "600"
         data        = <<-EOT
@@ -226,8 +226,8 @@ ${backend_ca_pem}
             stores:
               default:
                 defaultCertificate:
-                  certFile: /local/internal-cert.pem
-                  keyFile: /local/internal-key.pem
+                  certFile: /${secrets_dir}/internal-cert.pem
+                  keyFile: /${secrets_dir}/internal-key.pem
 %{ else ~}
           tcp:
             serversTransports:

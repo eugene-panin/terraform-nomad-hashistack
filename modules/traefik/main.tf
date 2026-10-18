@@ -43,6 +43,7 @@ resource "nomad_dynamic_host_volume" "acme_storage" {
 resource "nomad_job" "traefik" {
   jobspec = templatefile("${path.module}/templates/traefik.nomad.hcl.tftpl", {
     role                = var.role
+    secrets_dir         = var.secrets_dir
     job_name            = local.job_name
     namespace           = var.namespace
     datacenters         = var.datacenters

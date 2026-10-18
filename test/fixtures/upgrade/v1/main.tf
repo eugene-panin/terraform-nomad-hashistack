@@ -30,8 +30,9 @@ module "workload_identity" {
 module "traefik" {
   source = "../../../../modules/traefik"
 
-  role   = "internal"
-  tls    = var.internal_tls
-  consul = { address = "consul:8500", scheme = "http" }
-  image  = var.image
+  role        = "internal"
+  tls         = var.internal_tls
+  secrets_dir = "local"
+  consul      = { address = "consul:8500", scheme = "http" }
+  image       = var.image
 }

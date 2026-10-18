@@ -24,6 +24,12 @@ variable "internal_tls" {
   sensitive = true
 }
 
+variable "secrets_dir" {
+  description = "Where the internal role renders its certificate and key: secrets, or local where the task cannot see secrets."
+  type        = string
+  default     = "secrets"
+}
+
 variable "internal" {
   description = "Internal entrypoint."
   type = object({
@@ -95,12 +101,13 @@ module "workload_identity" {
 module "traefik_internal" {
   source = "../../modules/traefik"
 
-  role     = "internal"
-  tls      = var.internal_tls
-  internal = var.internal
-  routes   = var.routes
-  consul   = var.consul
-  image    = var.image
+  role        = "internal"
+  tls         = var.internal_tls
+  secrets_dir = var.secrets_dir
+  internal    = var.internal
+  routes      = var.routes
+  consul      = var.consul
+  image       = var.image
 
   depends_on = [module.workload_identity]
 }
